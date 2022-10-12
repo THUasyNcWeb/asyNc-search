@@ -8,4 +8,6 @@ RUN sh /res/build.sh
 
 EXPOSE 9200 9300
 
-CMD ["/bin/bash"]
+ENTRYPOINT ["/bin/bash"]
+
+CMD []
