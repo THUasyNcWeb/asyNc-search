@@ -7,7 +7,3 @@ ENV discovery.type=single-node
 RUN sh /res/build.sh
 
 EXPOSE 9200 9300
-
-ENTRYPOINT ["/bin/bash"]
-
-CMD []
