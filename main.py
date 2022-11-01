@@ -48,3 +48,22 @@ def add_news(data_json,file_path="index"):
     term = Term("news_url",data_json['news_url'])
     indexWriter.updateDocument(term,document)
     indexWriter.close()
+    
+# 参数一:默认的搜索域, 参数二:使用的分析器
+queryParser = QueryParser("content", analyzer)
+# 2.2 使用查询解析器对象, 实例化Query对象
+query = queryParser.parse("content:元宇宙展")
+indexReader = DirectoryReader.open(directory)
+searcher = IndexSearcher(indexReader)
+topDocs = searcher.search(query, 10)
+print(topDocs.totalHits)
+scoreDocs = topDocs.scoreDocs
+# lighter.setTextFragmenter(fragmenter)
+for scoreDoc in scoreDocs:
+    docId = scoreDoc.doc
+    score = scoreDoc.score
+    doc = searcher.doc(docId)
+    print(doc.get('title'))
+    print(doc.get('media'))
+    break
+indexReader.close()
