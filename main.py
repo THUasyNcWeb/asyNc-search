@@ -53,12 +53,13 @@ class search_engine(object):
         indexWriter.updateDocument(term,document)
         indexWriter.close()
         return True
-        
+
     def search_news(self,keyword,file_path='index'):
         # 参数一:默认的搜索域, 参数二:使用的分析器
         queryParser = QueryParser("content", self.analyzer)
         # 2.2 使用查询解析器对象, 实例化Query对象
-        query = queryParser.parse("content:元宇宙展")
+        search_content = "content:"+str(keyword)
+        query = queryParser.parse(search_content)
         directory = FSDirectory.open(Paths.get(file_path))
         indexReader = DirectoryReader.open(directory)
         searcher = IndexSearcher(indexReader)
@@ -94,8 +95,8 @@ if __name__ == "__main__":
     )
     mysearch =search_engine()
     @dispatcher.public
-    def search_news():
-        return mysearch.search_news()
+    def search_news(keyword):
+        return mysearch.search_news(keyword=keyword)
     # search.search_news()
     @dispatcher.public
     def write_news(data_json):
