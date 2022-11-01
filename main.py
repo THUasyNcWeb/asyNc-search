@@ -44,44 +44,50 @@ class search_engine(object):
             os.mkdir(file_path)
         data_json = json.loads(data_json, strict=False)
         # print(data_json)
-        analyzer = self.analyzer
-        indexConfig = IndexWriterConfig(analyzer)
-        directory = FSDirectory.open(Paths.get(file_path))
-        indexWriter = IndexWriter(directory, indexConfig)
-        document = self.getDocument(data_json)
-        term = Term("news_url",data_json['news_url'])
-        indexWriter.updateDocument(term,document)
-        indexWriter.close()
-        return True
-
+        try:
+            analyzer = self.analyzer
+            indexConfig = IndexWriterConfig(analyzer)
+            directory = FSDirectory.open(Paths.get(file_path))
+            indexWriter = IndexWriter(directory, indexConfig)
+            document = self.getDocument(data_json)
+            term = Term("news_url",data_json['news_url'])
+            indexWriter.updateDocument(term,document)
+            indexWriter.close()
+            return True
+        except:
+            return False
+        
     def search_news(self,keyword,file_path='index'):
-        # 参数一:默认的搜索域, 参数二:使用的分析器
-        queryParser = QueryParser("content", self.analyzer)
-        # 2.2 使用查询解析器对象, 实例化Query对象
-        search_content = "content:"+str(keyword)
-        query = queryParser.parse(search_content)
-        directory = FSDirectory.open(Paths.get(file_path))
-        indexReader = DirectoryReader.open(directory)
-        searcher = IndexSearcher(indexReader)
-        topDocs = searcher.search(query, 10)
-        # print(topDocs.totalHits)
-        scoreDocs = topDocs.scoreDocs
-        qs = QueryScorer(query)
-        simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
-        lighter = Highlighter(simpleHTMLFormatter,qs)
-        # lighter.setTextFragmenter(fragmenter)
-        for scoreDoc in scoreDocs:
-            docId = scoreDoc.doc
-            score = scoreDoc.score
-            doc = searcher.doc(docId)
-            tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
-            content = lighter.getBestFragment(tokenStream, doc.get('content'))
-            # print(content)
-            print(doc.get('title'))
-            # print(doc.get('media'))
-            break
-        indexReader.close()
-        return content
+        try:
+            # 参数一:默认的搜索域, 参数二:使用的分析器
+            queryParser = QueryParser("content", self.analyzer)
+            # 2.2 使用查询解析器对象, 实例化Query对象
+            search_content = "content:"+str(keyword)
+            query = queryParser.parse(search_content)
+            directory = FSDirectory.open(Paths.get(file_path))
+            indexReader = DirectoryReader.open(directory)
+            searcher = IndexSearcher(indexReader)
+            topDocs = searcher.search(query, 10)
+            # print(topDocs.totalHits)
+            scoreDocs = topDocs.scoreDocs
+            qs = QueryScorer(query)
+            simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
+            lighter = Highlighter(simpleHTMLFormatter,qs)
+            # lighter.setTextFragmenter(fragmenter)
+            for scoreDoc in scoreDocs:
+                docId = scoreDoc.doc
+                score = scoreDoc.score
+                doc = searcher.doc(docId)
+                tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
+                content = lighter.getBestFragment(tokenStream, doc.get('content'))
+                # print(content)
+                print(doc.get('title'))
+                # print(doc.get('media'))
+                break
+            indexReader.close()
+            return content
+        except:
+            return False
 
 if __name__ == "__main__":
     ctx = zmq.Context()
