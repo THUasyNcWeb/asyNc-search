@@ -16,6 +16,14 @@ from org.apache.lucene.search.highlight import Highlighter, QueryScorer, SimpleF
 
 lucene.initVM()
 
+analyzer = SmartChineseAnalyzer()
+indexConfig = IndexWriterConfig(analyzer)
+
+path = File("index")
+file_path ="index"
+directory = FSDirectory.open(Paths.get(file_path))
+indexWriter = IndexWriter(directory, indexConfig)
+
 def getDocument(data_json):
     document = Document()
     # 给文档对象添加域
@@ -28,3 +36,15 @@ def getDocument(data_json):
     document.add(TextField("media", data_json['media'], Field.Store.YES))
     document.add(TextField("category", str(data_json['category']), Field.Store.YES))
     return document
+
+def add_news(data_json,file_path="index"):
+    if os.path.exists(file_path) == False:
+        os.mkdir(file_path)
+    analyzer = SmartChineseAnalyzer()
+    indexConfig = IndexWriterConfig(analyzer)
+    directory = FSDirectory.open(Paths.get(file_path))
+    indexWriter = IndexWriter(directory, indexConfig)
+    document = getDocument(data_json)
+    term = Term("news_url",data_json['news_url'])
+    indexWriter.updateDocument(term,document)
+    indexWriter.close()
