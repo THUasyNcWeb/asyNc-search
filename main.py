@@ -58,12 +58,20 @@ searcher = IndexSearcher(indexReader)
 topDocs = searcher.search(query, 10)
 print(topDocs.totalHits)
 scoreDocs = topDocs.scoreDocs
+qs = QueryScorer(query)
+simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
+fragmenter = SimpleSpanFragmenter(qs)
+lighter = Highlighter(simpleHTMLFormatter,qs)
 # lighter.setTextFragmenter(fragmenter)
 for scoreDoc in scoreDocs:
     docId = scoreDoc.doc
     score = scoreDoc.score
     doc = searcher.doc(docId)
+    tokenStream = TokenSources.getTokenStream(doc, "content", analyzer)
+    highlighter = Highlighter(simpleHTMLFormatter,QueryScorer(query))
+    content = lighter.getBestFragment(tokenStream, doc.get('content'))
+    print(content)
     print(doc.get('title'))
-    print(doc.get('media'))
+    # print(doc.get('media'))
     break
 indexReader.close()
