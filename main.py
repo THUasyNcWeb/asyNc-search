@@ -1,6 +1,12 @@
 import lucene
 import json
 import sys,os
+import zmq
+
+from tinyrpc.server import RPCServer
+from tinyrpc.dispatch import RPCDispatcher
+from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
+from tinyrpc.transports.zmq import ZmqServerTransport
 from java.io import File
 from java.nio.file import Paths
 from org.apache.lucene.analysis import Analyzer
@@ -8,7 +14,6 @@ from org.apache.lucene.analysis.standard import StandardAnalyzer
 from org.apache.lucene.document import Document, Field, FieldType, TextField, StringField
 from org.apache.lucene.index import IndexWriter, Term, IndexWriterConfig, DirectoryReader 
 from org.apache.lucene.store import Directory, FSDirectory
-from org.apache.lucene.analysis.cn.smart import SmartChineseAnalyzer
 from org.apache.lucene.util import Version
 from org.apache.lucene.queryparser.classic import QueryParser
 from org.apache.lucene.search import IndexSearcher, Query, ScoreDoc, TopDocs
@@ -18,7 +23,7 @@ class search_engine(object):
     
     def __init__(self):
         lucene.initVM()
-        self.analyzer = SmartChineseAnalyzer()
+        self.analyzer = StandardAnalyzer()
         self.indexConfig = IndexWriterConfig(self.analyzer)
         
     def getDocument(self, data_json):
@@ -37,16 +42,19 @@ class search_engine(object):
     def add_news(self,data_json,file_path="index"):
         if os.path.exists(file_path) == False:
             os.mkdir(file_path)
+        data_json = json.loads(data_json, strict=False)
+        # print(data_json)
         analyzer = self.analyzer
-        indexConfig = self.indexConfig
+        indexConfig = IndexWriterConfig(analyzer)
         directory = FSDirectory.open(Paths.get(file_path))
         indexWriter = IndexWriter(directory, indexConfig)
         document = self.getDocument(data_json)
         term = Term("news_url",data_json['news_url'])
         indexWriter.updateDocument(term,document)
         indexWriter.close()
+        return True
         
-    def search_news(self,file_path='index'):
+    def search_news(self,keyword,file_path='index'):
         # 参数一:默认的搜索域, 参数二:使用的分析器
         queryParser = QueryParser("content", self.analyzer)
         # 2.2 使用查询解析器对象, 实例化Query对象
@@ -55,7 +63,7 @@ class search_engine(object):
         indexReader = DirectoryReader.open(directory)
         searcher = IndexSearcher(indexReader)
         topDocs = searcher.search(query, 10)
-        print(topDocs.totalHits)
+        # print(topDocs.totalHits)
         scoreDocs = topDocs.scoreDocs
         qs = QueryScorer(query)
         simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
@@ -67,8 +75,29 @@ class search_engine(object):
             doc = searcher.doc(docId)
             tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
             content = lighter.getBestFragment(tokenStream, doc.get('content'))
-            print(content)
+            # print(content)
             print(doc.get('title'))
             # print(doc.get('media'))
             break
         indexReader.close()
+        return content
+
+if __name__ == "__main__":
+    ctx = zmq.Context()
+    dispatcher = RPCDispatcher()
+    transport = ZmqServerTransport.create(ctx, 'tcp://127.0.0.1:5001')
+
+    rpc_server = RPCServer(
+        transport,
+        JSONRPCProtocol(),
+        dispatcher
+    )
+    mysearch =search_engine()
+    @dispatcher.public
+    def search_news():
+        return mysearch.search_news()
+    # search.search_news()
+    @dispatcher.public
+    def write_news(data_json):
+        return mysearch.add_news(data_json=data_json)
+    rpc_server.serve_forever()
