@@ -32,8 +32,6 @@ RUN apt-get -y install g++
 
 WORKDIR /opt/app/pylucene-8.11.0/jcc
 
-# CMD ["bash"]
-
 RUN python3 setup.py build
 
 RUN python3 setup.py install
@@ -51,5 +49,7 @@ COPY main.py main.py
 COPY requirements.txt requirements.txt 
 
 RUN pip install -r requirements.txt 
+
+EXPOSE 5001
 
 CMD ["python3", "main.py"]
