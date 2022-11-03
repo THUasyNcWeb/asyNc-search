@@ -138,6 +138,7 @@ class search_engine(object):
             indexReader = DirectoryReader.open(directory)
             searcher = IndexSearcher(indexReader)
             topDocs = searcher.search(query, 10)
+            total = int(str(topDocs.totalHits).replace(" hits",''))
             # print(topDocs.totalHits)
             scoreDocs = topDocs.scoreDocs
             qs = QueryScorer(query)
@@ -151,10 +152,29 @@ class search_engine(object):
                 doc = searcher.doc(docId)
                 tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
                 content = lighter.getBestFragment(tokenStream, doc.get('content'))
+                new = {}
+                new['title'] = doc.get('title')
+                new['media'] = doc.get('media')
+                new['url'] = doc.get('news_url')
+                new['pub_time'] = doc.get('pub_time')
+                new['content'] = content
+                new['picture_url'] = doc.get('first_img_url')
+                new['tags'] = doc.get('tags')
+                if new['picture_url']=='None':
+                    new['picture_url'] = ""
+                news_list += [new]
             indexReader.close()
-            return content
+            news = {}
+            news['total'] = total
+            news['news_list'] = news_list
+            news['message'] = "Success"
+            return news
         except:
-            return False
+            news = {}
+            news['total'] = 0
+            news['news_list'] = []
+            news['message'] = "Error"
+            return news
 
 if __name__ == "__main__":
     ctx = zmq.Context()
