@@ -48,6 +48,30 @@ class search_engine(object):
         self.cur.execute(query)
         result = self.cur.fetchall()
         print(result)
+    
+    def read_from_db(self):
+        print("Start Reading Data From db")
+        query = r'select * from news limit 10000 offset 0;'
+        self.cur.execute(query)
+        results = self.cur.fetchall()
+        for result in results:
+            data = {}
+            print(result[0])
+            data['news_url'] = result[1]
+            data['media'] = result[2]
+            data['category'] = result[3]
+            data['tags'] = result[4]
+            data['title'] = result[5]
+            data['content'] = result[7]
+            data['first_img_url'] = result[8]
+            if data['first_img_url'] == None:
+                data['first_img_url'] = "None"
+            data['pub_time'] = str(result[9])
+            # data['news_id'] = str(result[0])
+            data['title'] = result[5]
+            data['content'] = result[7]
+            self.add_news(data)
+        return len(result)
         
     def getDocument(self, data_json):
         document = Document()
