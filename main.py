@@ -3,13 +3,14 @@ import json
 import sys,os
 import zmq
 import psycopg2
+import math
+import re
 
 from tinyrpc.server import RPCServer
 from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.zmq import ZmqServerTransport
-import re
-import math
+
 from java.io import File
 from java.nio.file import Paths
 from org.apache.lucene.analysis import Analyzer
@@ -127,73 +128,7 @@ class search_engine(object):
             return True
         except:
             return False
-        
-    def search_news(self,keyword,page=0,file_path='index'):
-        print("Searching begin")
-        try:
-            # 参数一:默认的搜索域, 参数二:使用的分析器
-            fields = ["content","title"]
-            queryParser = MultiFieldQueryParser(fields, self.analyzer)
-            # 2.2 使用查询解析器对象, 实例化Query对象
-            query = queryParser.parse([str(keyword),str(keyword)],fields,[BooleanClause.Occur.SHOULD,BooleanClause.Occur.SHOULD],self.analyzer)
-            directory = FSDirectory.open(Paths.get(file_path))
-            indexReader = DirectoryReader.open(directory)
-            searcher = IndexSearcher(indexReader)
-            topDocs = searcher.search(query, (page+1)*10)
-            total = int(str(topDocs.totalHits).replace(" hits",''))
-            print(total)
-            total_page = math.ceil(total/10)-1
-            if page > total_page + 1 or page < 0:
-                news = {}
-                news['total'] = 0
-                news['news_list'] = []
-                news['message'] = "Success"
-                return news
-            start = page * 10
-            end = min(start+10,total)
-            scoreDocs = topDocs.scoreDocs
-            qs = QueryScorer(query)
-            simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
-            lighter = Highlighter(simpleHTMLFormatter,qs)
-            news_list = []
-            for i in range(end-start):
-                scoreDoc = scoreDocs[start+i]
-                docId = scoreDoc.doc
-                score = scoreDoc.score
-                doc = searcher.doc(docId)
-                tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
-                content = lighter.getBestFragment(tokenStream, doc.get('content'))
-                tokenStream = TokenSources.getTokenStream(doc, "title", self.analyzer)
-                title = lighter.getBestFragment(tokenStream, doc.get('title'))
-                if title == None:
-                    title = doc.get('title')
-                if content == None:
-                    content = doc.get('content')
-                new = {}
-                new['title'] = title
-                new['media'] = doc.get('media')
-                new['url'] = doc.get('news_url')
-                new['pub_time'] = doc.get('pub_time')
-                new['content'] = content
-                new['picture_url'] = doc.get('first_img_url')
-                new['tags'] = doc.get('tags')
-                if new['picture_url']=='None':
-                    new['picture_url'] = ""
-                news_list += [new]
-            indexReader.close()
-            print("Searching End!")
-            news = {}
-            news['total'] = total
-            news['news_list'] = news_list
-            news['message'] = "Success"
-            return news
-        except:
-            news = {}
-            news['total'] = 0
-            news['news_list'] = []
-            news['message'] = "Error"
-            return news
-
+    
     def search_keywords(self,keyword,must_contain=[],must_not=[],page=0,file_path='index'):
         # 参数一:默认的搜索域, 参数二:使用的分析器
         # queryParser = QueryParser("content", self.analyzer)
@@ -270,6 +205,72 @@ class search_engine(object):
             news['message'] = "Error"
             return news
 
+    def search_news(self,keyword,page=0,file_path='index'):
+        print("Searching begin")
+        try:
+            # 参数一:默认的搜索域, 参数二:使用的分析器
+            fields = ["content","title"]
+            queryParser = MultiFieldQueryParser(fields, self.analyzer)
+            # 2.2 使用查询解析器对象, 实例化Query对象
+            query = queryParser.parse([str(keyword),str(keyword)],fields,[BooleanClause.Occur.SHOULD,BooleanClause.Occur.SHOULD],self.analyzer)
+            directory = FSDirectory.open(Paths.get(file_path))
+            indexReader = DirectoryReader.open(directory)
+            searcher = IndexSearcher(indexReader)
+            topDocs = searcher.search(query, (page+1)*10)
+            total = int(str(topDocs.totalHits).replace(" hits",''))
+            print(total)
+            total_page = math.ceil(total/10)-1
+            if page > total_page + 1 or page < 0:
+                news = {}
+                news['total'] = 0
+                news['news_list'] = []
+                news['message'] = "Success"
+                return news
+            start = page * 10
+            end = min(start+10,total)
+            scoreDocs = topDocs.scoreDocs
+            qs = QueryScorer(query)
+            simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
+            lighter = Highlighter(simpleHTMLFormatter,qs)
+            news_list = []
+            for i in range(end-start):
+                scoreDoc = scoreDocs[start+i]
+                docId = scoreDoc.doc
+                score = scoreDoc.score
+                doc = searcher.doc(docId)
+                tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
+                content = lighter.getBestFragment(tokenStream, doc.get('content'))
+                tokenStream = TokenSources.getTokenStream(doc, "title", self.analyzer)
+                title = lighter.getBestFragment(tokenStream, doc.get('title'))
+                if title == None:
+                    title = doc.get('title')
+                if content == None:
+                    content = doc.get('content')
+                new = {}
+                new['title'] = title
+                new['media'] = doc.get('media')
+                new['url'] = doc.get('news_url')
+                new['pub_time'] = doc.get('pub_time')
+                new['content'] = content
+                new['picture_url'] = doc.get('first_img_url')
+                new['tags'] = doc.get('tags')
+                if new['picture_url']=='None':
+                    new['picture_url'] = ""
+                news_list += [new]
+            indexReader.close()
+            print("Searching End!")
+            news = {}
+            news['total'] = total
+            news['news_list'] = news_list
+            news['message'] = "Success"
+            return news
+        except:
+            news = {}
+            news['total'] = 0
+            news['news_list'] = []
+            news['message'] = "Error"
+            return news
+
 def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>'):
     """
     summary: pass in str
@@ -300,19 +301,30 @@ def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>')
 if __name__ == "__main__":
     ctx = zmq.Context()
     dispatcher = RPCDispatcher()
-    transport = ZmqServerTransport.create(ctx, 'tcp://127.0.0.1:5001')
+    transport = ZmqServerTransport.create(ctx, 'tcp://192.168.227.128:5001')
 
     rpc_server = RPCServer(
         transport,
         JSONRPCProtocol(),
         dispatcher
     )
+    
     mysearch =search_engine()
+
     @dispatcher.public
-    def search_news(keyword):
-        return mysearch.search_news(keyword=keyword)
-    # search.search_news()
+    def search_news(keyword,page=0):
+        return mysearch.search_news(keyword=keyword,page=page)
+
     @dispatcher.public
     def write_news(data_json):
         return mysearch.add_news(data_json=data_json)
+
+    @dispatcher.public
+    def read_from_db():
+        return mysearch.read_from_db()
+
+    @dispatcher.public
+    def test_connection():
+        return "Success"
+
     rpc_server.serve_forever()
