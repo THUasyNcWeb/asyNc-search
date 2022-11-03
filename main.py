@@ -129,12 +129,13 @@ class search_engine(object):
             return False
         
     def search_news(self,keyword,page=0,file_path='index'):
+        print("Searching begin")
         try:
             # 参数一:默认的搜索域, 参数二:使用的分析器
-            queryParser = QueryParser("content", self.analyzer)
+            fields = ["content","title"]
+            queryParser = MultiFieldQueryParser(fields, self.analyzer)
             # 2.2 使用查询解析器对象, 实例化Query对象
-            search_content = "content:"+str(keyword)
-            query = queryParser.parse(search_content)
+            query = queryParser.parse([str(keyword),str(keyword)],fields,[BooleanClause.Occur.SHOULD,BooleanClause.Occur.SHOULD],self.analyzer)
             directory = FSDirectory.open(Paths.get(file_path))
             indexReader = DirectoryReader.open(directory)
             searcher = IndexSearcher(indexReader)
@@ -155,15 +156,21 @@ class search_engine(object):
             simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
             lighter = Highlighter(simpleHTMLFormatter,qs)
             news_list = []
-            # lighter.setTextFragmenter(fragmenter)
-            for scoreDoc in scoreDocs:
+            for i in range(end-start):
+                scoreDoc = scoreDocs[start+i]
                 docId = scoreDoc.doc
                 score = scoreDoc.score
                 doc = searcher.doc(docId)
                 tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
                 content = lighter.getBestFragment(tokenStream, doc.get('content'))
+                tokenStream = TokenSources.getTokenStream(doc, "title", self.analyzer)
+                title = lighter.getBestFragment(tokenStream, doc.get('title'))
+                if title == None:
+                    title = doc.get('title')
+                if content == None:
+                    content = doc.get('content')
                 new = {}
-                new['title'] = doc.get('title')
+                new['title'] = title
                 new['media'] = doc.get('media')
                 new['url'] = doc.get('news_url')
                 new['pub_time'] = doc.get('pub_time')
@@ -174,6 +181,7 @@ class search_engine(object):
                     new['picture_url'] = ""
                 news_list += [new]
             indexReader.close()
+            print("Searching End!")
             news = {}
             news['total'] = total
             news['news_list'] = news_list
@@ -185,6 +193,7 @@ class search_engine(object):
             news['news_list'] = []
             news['message'] = "Error"
             return news
+
 
 if __name__ == "__main__":
     ctx = zmq.Context()
