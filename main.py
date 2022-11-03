@@ -9,6 +9,7 @@ from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.zmq import ZmqServerTransport
 import re
+import math
 from java.io import File
 from java.nio.file import Paths
 from org.apache.lucene.analysis import Analyzer
@@ -127,7 +128,7 @@ class search_engine(object):
         except:
             return False
         
-    def search_news(self,keyword,file_path='index'):
+    def search_news(self,keyword,page=0,file_path='index'):
         try:
             # 参数一:默认的搜索域, 参数二:使用的分析器
             queryParser = QueryParser("content", self.analyzer)
@@ -137,9 +138,18 @@ class search_engine(object):
             directory = FSDirectory.open(Paths.get(file_path))
             indexReader = DirectoryReader.open(directory)
             searcher = IndexSearcher(indexReader)
-            topDocs = searcher.search(query, 10)
+            topDocs = searcher.search(query, (page+1)*10)
             total = int(str(topDocs.totalHits).replace(" hits",''))
-            # print(topDocs.totalHits)
+            print(total)
+            total_page = math.ceil(total/10)-1
+            if page > total_page + 1 or page < 0:
+                news = {}
+                news['total'] = 0
+                news['news_list'] = []
+                news['message'] = "Success"
+                return news
+            start = page * 10
+            end = min(start+10,total)
             scoreDocs = topDocs.scoreDocs
             qs = QueryScorer(query)
             simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
