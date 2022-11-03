@@ -43,6 +43,12 @@ class search_engine(object):
             dbname=self.postgres[4])
         self.cur = self.connection.cursor()
         
+    def check_db_status(self):
+        query = r'select count(*) from news;'
+        self.cur.execute(query)
+        result = self.cur.fetchall()
+        print(result)
+        
     def getDocument(self, data_json):
         document = Document()
         # 给文档对象添加域
