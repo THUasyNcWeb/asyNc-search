@@ -237,18 +237,21 @@ class search_engine(object):
             # print("total:"+str(topDocs.totalHits))
             scoreDocs = topDocs.scoreDocs[start:end]
             qs = QueryScorer(query)
+            simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
+            lighter = Highlighter(simpleHTMLFormatter,qs)
             news_list = []
             for scoreDoc in scoreDocs:
                 docId = scoreDoc.doc
                 score = scoreDoc.score
                 doc = searcher.doc(docId)
                 tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
+                content = lighter.getBestFragment(tokenStream, doc.get('content'))
                 new = {}
                 new['title'] = doc.get('title')
                 new['media'] = doc.get('media')
                 new['url'] = doc.get('news_url')
                 new['pub_time'] = doc.get('pub_time')
-                new['content'] = doc.get('content')
+                new['content'] = content
                 new['picture_url'] = doc.get('first_img_url')
                 new['tags'] = doc.get('tags')
                 if new['picture_url']=='None':
