@@ -44,6 +44,13 @@ class search_engine(object):
             user=self.postgres[2], password=self.postgres[3],
             dbname=self.postgres[4])
         self.cur = self.connection.cursor()
+        self.count = 0
+        if os.path.exists('count'):
+            with open('count','r') as f:
+                try:
+                    self.count = int(f.readlines()[0])
+                except:
+                    self.count = 0
         
     def check_db_status(self):
         query = r'select count(*) from news;'
@@ -110,6 +117,12 @@ class search_engine(object):
             term = Term("news_url",data_json['news_url'])
             indexWriter.updateDocument(term,document)
             indexWriter.close()
+            self.count += 1
+            try:
+                with open('count','w') as f:
+                    f.write(str(self.count))
+            except:
+                pass
             return True
         except:
             return False
