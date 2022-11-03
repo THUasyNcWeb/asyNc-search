@@ -36,7 +36,7 @@ class search_engine(object):
         '''
         Connect to the database
         '''
-        with open('config.json', 'r', encoding='utf-8') as file:
+        with open('config/config.json', 'r', encoding='utf-8') as file:
             config = json.load(file)
         self.postgres = (config['hostname'], config['port'],
                          config['username'], config['password'],
