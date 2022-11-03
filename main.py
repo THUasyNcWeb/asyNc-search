@@ -222,15 +222,27 @@ class search_engine(object):
         searcher = IndexSearcher(indexReader)
         print("Start!")
         try:
-            topDocs = searcher.search(query, 10)
-            print("total:"+str(topDocs.totalHits))
-            scoreDocs = topDocs.scoreDocs
+            topDocs = searcher.search(query, (page+1)*10)
+            total = int(str(topDocs.totalHits).replace(" hits",''))
+            total_page = math.ceil(total/10)-1
+            if page > total_page + 1 or page < 0:
+                news = {}
+                news['total'] = 0
+                news['news_list'] = []
+                news['message'] = "Success"
+                return news
+            start = page * 10
+            end = min(start+10,total)
+            # topDocs = searcher.search(query, 10)
+            # print("total:"+str(topDocs.totalHits))
+            scoreDocs = topDocs.scoreDocs[start:end]
             qs = QueryScorer(query)
             news_list = []
             for scoreDoc in scoreDocs:
                 docId = scoreDoc.doc
                 score = scoreDoc.score
                 doc = searcher.doc(docId)
+                tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
                 new = {}
                 new['title'] = doc.get('title')
                 new['media'] = doc.get('media')
@@ -254,6 +266,7 @@ class search_engine(object):
             news['news_list'] = []
             news['message'] = "Error"
             return news
+
 if __name__ == "__main__":
     ctx = zmq.Context()
     dispatcher = RPCDispatcher()
