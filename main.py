@@ -2,6 +2,7 @@ import lucene
 import json
 import sys,os
 import zmq
+import psycopg2
 
 from tinyrpc.server import RPCServer
 from tinyrpc.dispatch import RPCDispatcher
@@ -22,9 +23,25 @@ from org.apache.lucene.search.highlight import Highlighter, QueryScorer, SimpleF
 class search_engine(object):
     
     def __init__(self):
+        """
+        init lucene and database
+        """
         lucene.initVM()
         self.analyzer = StandardAnalyzer()
         self.indexConfig = IndexWriterConfig(self.analyzer)
+        '''
+        Connect to the database
+        '''
+        with open('config.json', 'r', encoding='utf-8') as file:
+            config = json.load(file)
+        self.postgres = (config['hostname'], config['port'],
+                         config['username'], config['password'],
+                         config['database'])
+        self.connection = psycopg2.connect(
+            host=self.postgres[0], port=self.postgres[1],
+            user=self.postgres[2], password=self.postgres[3],
+            dbname=self.postgres[4])
+        self.cur = self.connection.cursor()
         
     def getDocument(self, data_json):
         document = Document()
