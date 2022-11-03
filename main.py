@@ -220,7 +220,40 @@ class search_engine(object):
         directory = FSDirectory.open(Paths.get(file_path))
         indexReader = DirectoryReader.open(directory)
         searcher = IndexSearcher(indexReader)
-
+        print("Start!")
+        try:
+            topDocs = searcher.search(query, 10)
+            print("total:"+str(topDocs.totalHits))
+            scoreDocs = topDocs.scoreDocs
+            qs = QueryScorer(query)
+            news_list = []
+            for scoreDoc in scoreDocs:
+                docId = scoreDoc.doc
+                score = scoreDoc.score
+                doc = searcher.doc(docId)
+                new = {}
+                new['title'] = doc.get('title')
+                new['media'] = doc.get('media')
+                new['url'] = doc.get('news_url')
+                new['pub_time'] = doc.get('pub_time')
+                new['content'] = doc.get('content')
+                new['picture_url'] = doc.get('first_img_url')
+                new['tags'] = doc.get('tags')
+                if new['picture_url']=='None':
+                    new['picture_url'] = ""
+                news_list += [new]
+            indexReader.close()
+            news = {}
+            news['total'] = int(str(topDocs.totalHits).replace(" hits",''))
+            news['news_list'] = news_list
+            news['message'] = "Success"
+            return news
+        except:
+            news = {}
+            news['total'] = 0
+            news['news_list'] = []
+            news['message'] = "Error"
+            return news
 if __name__ == "__main__":
     ctx = zmq.Context()
     dispatcher = RPCDispatcher()
