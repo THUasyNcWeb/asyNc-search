@@ -270,6 +270,33 @@ class search_engine(object):
             news['message'] = "Error"
             return news
 
+def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>'):
+    """
+    summary: pass in str
+    Returns:
+        location_list
+    """
+
+    start = len(start_tag)
+    end = len(end_tag)
+    location_infos = []
+    pattern = start_tag + '(.+?)' + end_tag
+
+    for idx,m_res in enumerate(re.finditer(r'{i}'.format(i=pattern), info_str)):
+        location_info = []
+
+        if idx == 0:
+            location_info.append(m_res.span()[0])
+            location_info.append(m_res.span()[1] - (idx + 1) * (start + end))
+        else:
+            location_info.append(m_res.span()[0] - idx * (start + end))
+            location_info.append(m_res.span()[1] - (idx + 1) * (start + end))
+
+        location_infos.append(location_info)
+
+    return location_infos
+
+
 if __name__ == "__main__":
     ctx = zmq.Context()
     dispatcher = RPCDispatcher()
