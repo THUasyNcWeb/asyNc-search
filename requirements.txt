@@ -1,2 +1,4 @@
 zmq
 tinyrpc
+psycopg2
+re
