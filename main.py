@@ -301,7 +301,7 @@ def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>')
 if __name__ == "__main__":
     ctx = zmq.Context()
     dispatcher = RPCDispatcher()
-    transport = ZmqServerTransport.create(ctx, 'tcp://192.168.227.128:5001')
+    transport = ZmqServerTransport.create(ctx, 'tcp://127.0.0.1:5001')
 
     rpc_server = RPCServer(
         transport,
