@@ -81,6 +81,8 @@ class search_engine(object):
         # add方法: 把域添加到文档对象中, field参数: 要添加的域
         # TextField: 文本域, 属性name:域的名称, value:域的值, store:指定是否将域值保存到文档中
         # StringField: 不分词, 作为一个整体进行索引
+        if data_json['first_img_url'] == None or data_json['first_img_url'] == '': 
+            data_json['first_img_url'] = "None"
         document.add(StoredField("first_img_url", data_json['first_img_url']))
         document.add(StoredField("news_url", data_json['news_url']))
         document.add(StoredField("pub_time", data_json['pub_time']))
@@ -128,6 +130,7 @@ class search_engine(object):
             qs = QueryScorer(query)
             simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
             lighter = Highlighter(simpleHTMLFormatter,qs)
+            news_list = []
             # lighter.setTextFragmenter(fragmenter)
             for scoreDoc in scoreDocs:
                 docId = scoreDoc.doc
@@ -135,10 +138,6 @@ class search_engine(object):
                 doc = searcher.doc(docId)
                 tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
                 content = lighter.getBestFragment(tokenStream, doc.get('content'))
-                # print(content)
-                print(doc.get('title'))
-                # print(doc.get('media'))
-                break
             indexReader.close()
             return content
         except:
