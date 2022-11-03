@@ -94,8 +94,11 @@ class search_engine(object):
     def add_news(self,data_json,file_path="index"):
         if os.path.exists(file_path) == False:
             os.mkdir(file_path)
-        data_json = json.loads(data_json, strict=False)
-        # print(data_json)
+        try:
+            data_json = json.dumps(data_json)
+            data_json = json.loads(data_json, strict=False)
+        except ValueError:
+            return False
         try:
             analyzer = self.analyzer
             indexConfig = IndexWriterConfig(analyzer)
