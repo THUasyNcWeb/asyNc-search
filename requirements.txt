@@ -1,4 +1,3 @@
 zmq
 tinyrpc
 psycopg2-binary
-re
