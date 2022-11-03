@@ -6,10 +6,14 @@ import psycopg2
 import math
 import re
 
-from tinyrpc.server import RPCServer
+import gevent
+import gevent.pywsgi
+import gevent.queue
+
+from tinyrpc.server.gevent import RPCServerGreenlets
 from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
-from tinyrpc.transports.zmq import ZmqServerTransport
+from tinyrpc.transports.wsgi import WsgiServerTransport
 
 from java.io import File
 from java.nio.file import Paths
@@ -299,11 +303,14 @@ def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>')
 
 
 if __name__ == "__main__":
-    ctx = zmq.Context()
     dispatcher = RPCDispatcher()
-    transport = ZmqServerTransport.create(ctx, 'tcp://127.0.0.1:5001')
+    transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
 
-    rpc_server = RPCServer(
+    # start wsgi server as a background-greenlet
+    wsgi_server = gevent.pywsgi.WSGIServer(('0.0.0.0', 5001), transport.handle)
+    gevent.spawn(wsgi_server.serve_forever)
+
+    rpc_server = RPCServerGreenlets(
         transport,
         JSONRPCProtocol(),
         dispatcher
