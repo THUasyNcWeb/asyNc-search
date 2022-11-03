@@ -194,6 +194,32 @@ class search_engine(object):
             news['message'] = "Error"
             return news
 
+    def search_keywords(self,keyword,must_contain=[],must_not=[],page=0,file_path='index'):
+        # 参数一:默认的搜索域, 参数二:使用的分析器
+        # queryParser = QueryParser("content", self.analyzer)
+        # 2.2 使用查询解析器对象, 实例化Query对象
+        # search_content = 'content:'+str('"'+keyword+'"')
+        # query = queryParser.parse(search_content)
+        bq = BooleanQuery.Builder()
+        for key in keyword:
+            query_content = TermQuery(Term("content", key))
+            query_title = TermQuery(Term("title", key))
+            bq.add(query_content, BooleanClause.Occur.SHOULD)
+            bq.add(query_title, BooleanClause.Occur.SHOULD)
+        for key_must in must_contain:
+            query_content = TermQuery(Term("content", key_must))
+            query_title = TermQuery(Term("title", key_must))
+            bq.add(query_content, BooleanClause.Occur.MUST)
+            bq.add(query_title, BooleanClause.Occur.MUST)
+        for key_must_not in must_not:
+            query_content = TermQuery(Term("content", key_must_not))
+            query_title = TermQuery(Term("title", key_must_not))
+            bq.add(query_content, BooleanClause.Occur.MUST_NOT)
+            bq.add(query_title, BooleanClause.Occur.MUST_NOT)
+        query = bq.build()          
+        directory = FSDirectory.open(Paths.get(file_path))
+        indexReader = DirectoryReader.open(directory)
+        searcher = IndexSearcher(indexReader)
 
 if __name__ == "__main__":
     ctx = zmq.Context()
