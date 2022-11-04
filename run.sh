@@ -1,0 +1,2 @@
+nginx
+python main.py

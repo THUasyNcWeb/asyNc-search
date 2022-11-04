@@ -64,8 +64,8 @@ RUN rm -r /etc/nginx/conf.d \
 RUN ln -sf /dev/stdout /var/log/nginx/access.log \
  && ln -sf /dev/stderr /var/log/nginx/error.log
 
-RUN service nginx start
-
 EXPOSE 80
 
-CMD ["python3", "main.py"]
+COPY run.sh run.sh
+
+CMD ["sh", "run.sh"]
