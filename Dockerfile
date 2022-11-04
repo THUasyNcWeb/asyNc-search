@@ -1,5 +1,7 @@
 FROM --platform=linux/amd64 ubuntu:20.04
 
+ENV HOME=/opt/app
+
 RUN apt-get update
 
 RUN apt install -y apt-transport-https ca-certificates
@@ -14,7 +16,7 @@ RUN mv /usr/bin/pip /usr/bin/pip2
 RUN ln -s /usr/bin/pip3 /usr/bin/pip
 RUN ln -s /usr/bin/python3 /usr/bin/python
 
-WORKDIR /opt/app
+WORKDIR $HOME
 
 COPY pylucene-8.11.0.tar.gz pylucene-8.11.0.tar.gz
 
@@ -30,19 +32,19 @@ RUN apt-get -y install python3-setuptools
 
 RUN apt-get -y install g++
 
-WORKDIR /opt/app/pylucene-8.11.0/jcc
+WORKDIR $HOME/pylucene-8.11.0/jcc
 
 RUN python3 setup.py build
 
 RUN python3 setup.py install
 
-WORKDIR /opt/app/pylucene-8.11.0
+WORKDIR $HOME/pylucene-8.11.0
 
 RUN make
 
 RUN make install
 
-WORKDIR /opt/app
+WORKDIR $HOME
 
 COPY main.py main.py 
 
