@@ -50,6 +50,20 @@ COPY requirements.txt requirements.txt
 
 RUN pip install -r requirements.txt 
 
-EXPOSE 5001
+# Reverse proxy
+
+RUN apt install -y nginx
+
+COPY nginx/ nginx/
+
+RUN rm -r /etc/nginx/conf.d \
+ && ln -s $HOME/nginx /etc/nginx/conf.d
+
+RUN ln -sf /dev/stdout /var/log/nginx/access.log \
+ && ln -sf /dev/stderr /var/log/nginx/error.log
+
+RUN service nginx start
+
+EXPOSE 80
 
 CMD ["python3", "main.py"]
