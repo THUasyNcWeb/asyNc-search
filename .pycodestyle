@@ -1,0 +1,4 @@
+[pycodestyle]
+
+exclude = main/migrations
+max-line-length = 100
