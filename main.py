@@ -30,6 +30,8 @@ from org.apache.lucene.search import IndexSearcher
 from org.apache.lucene.search.highlight import Highlighter, QueryScorer
 from org.apache.lucene.search.highlight import SimpleHTMLFormatter, TokenSources
 from org.apache.lucene.search import BooleanQuery, TermQuery, BooleanClause
+
+
 class SearchEngine():
     """
     Class SearchEngin provide basic search function for searching
@@ -58,7 +60,7 @@ class SearchEngine():
         self.count = 0
         self.init = False
         if os.path.exists('count'):
-            with open('count','r') as f_file:
+            with open('count', 'r') as f_file:
                 try:
                     self.count = int(f_file.readlines()[0])
                 except Exception as error:
@@ -123,7 +125,7 @@ class SearchEngine():
         document.add(TextField("tags", str(data_json['category']), Field.Store.YES))
         return document
 
-    def add_news(self,data_json,file_path="index"):
+    def add_news(self, data_json, file_path="index"):
         """add_news
 
         Args:
@@ -147,12 +149,12 @@ class SearchEngine():
             directory = FSDirectory.open(Paths.get(file_path))
             indexwriter = IndexWriter(directory, indexconfig)
             document = self.get_document(data_json)
-            term = Term("news_url",data_json['news_url'])
-            indexwriter.updateDocument(term,document)
+            term = Term("news_url", data_json['news_url'])
+            indexwriter.updateDocument(term, document)
             indexwriter.close()
             self.count += 1
             try:
-                with open('count','w') as f_file:
+                with open('count', 'w') as f_file:
                     f_file.write(str(self.count))
             except Exception as error:
                 print(error)
@@ -161,7 +163,7 @@ class SearchEngine():
             print(error)
             return False
 
-    def search_keywords(self,keyword,must_contain=[],must_not=[],page=0,file_path='index'):
+    def search_keywords(self, keyword, must_contain=[], must_not=[], page=0, file_path='index'):
         """_summary_
 
         Args:
@@ -202,7 +204,7 @@ class SearchEngine():
         print("Start!")
         try:
             topdocs = searcher.search(query, (page+1)*10)
-            total = int(str(topdocs.totalHits).replace(" hits",''))
+            total = int(str(topdocs.totalHits).replace(" hits", ''))
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
                 news = {}
@@ -211,13 +213,13 @@ class SearchEngine():
                 news['message'] = "Success"
                 return news
             start = page * 10
-            end = min(start+10,total)
+            end = min(start+10, total)
             # topdocs = searcher.search(query, 10)
             # print("total:"+str(topdocs.totalHits))
             scoredocs = topdocs.scoreDocs[start:end]
             queryscorer = QueryScorer(query)
             simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
-            lighter = Highlighter(simplehtmlformatter,queryscorer)
+            lighter = Highlighter(simplehtmlformatter, queryscorer)
             news_list = []
             for scoredoc in scoredocs:
                 docid = scoredoc.doc
@@ -233,12 +235,12 @@ class SearchEngine():
                 new['content'] = content
                 new['picture_url'] = doc.get('first_img_url')
                 new['tags'] = doc.get('tags')
-                if new['picture_url']=='None':
+                if new['picture_url'] == 'None':
                     new['picture_url'] = ""
                 news_list += [new]
             indexreader.close()
             news = {}
-            news['total'] = int(str(topdocs.totalHits).replace(" hits",''))
+            news['total'] = int(str(topdocs.totalHits).replace(" hits", ''))
             news['news_list'] = news_list
             news['message'] = "Success"
             return news
@@ -250,7 +252,7 @@ class SearchEngine():
             news['message'] = "Error"
             return news
 
-    def search_news(self,keyword,page=0,file_path='index'):
+    def search_news(self, keyword, page=0, file_path='index'):
         """_summary_
 
         Args:
@@ -264,17 +266,18 @@ class SearchEngine():
         print("Searching begin")
         try:
             # 参数一:默认的搜索域, 参数二:使用的分析器
-            fields = ["content","title"]
+            fields = ["content", "title"]
             query_parser = MultiFieldQueryParser(fields, self.analyzer)
             # 2.2 使用查询解析器对象, 实例化Query对象
-            query = query_parser.parse([str(keyword),str(keyword)],fields,
-                                      [BooleanClause.Occur.SHOULD,BooleanClause.Occur.SHOULD],
-                                      self.analyzer)
+            query = query_parser.parse([str(keyword), str(keyword)], fields,
+                                       [BooleanClause.Occur.SHOULD, BooleanClause.Occur.SHOULD],
+                                       self.analyzer)
+
             directory = FSDirectory.open(Paths.get(file_path))
             indexreader = DirectoryReader.open(directory)
             searcher = IndexSearcher(indexreader)
             topdocs = searcher.search(query, (page+1)*10)
-            total = int(str(topdocs.totalHits).replace(" hits",''))
+            total = int(str(topdocs.totalHits).replace(" hits", ''))
             print(total)
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
@@ -284,11 +287,11 @@ class SearchEngine():
                 news['message'] = "Success"
                 return news
             start = page * 10
-            end = min(start+10,total)
+            end = min(start+10, total)
             scoredocs = topdocs.scoreDocs
             query_scorer = QueryScorer(query)
             simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
-            lighter = Highlighter(simplehtmlformatter,query_scorer)
+            lighter = Highlighter(simplehtmlformatter, query_scorer)
             news_list = []
             for i in range(end-start):
                 scoredoc = scoredocs[start+i]
@@ -311,7 +314,7 @@ class SearchEngine():
                 new['content'] = content
                 new['picture_url'] = doc.get('first_img_url')
                 new['tags'] = doc.get('tags')
-                if new['picture_url']=='None':
+                if new['picture_url'] == 'None':
                     new['picture_url'] = ""
                 news_list += [new]
             indexreader.close()
@@ -329,7 +332,8 @@ class SearchEngine():
             news['message'] = "Error"
             return news
 
-def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>'):
+
+def get_location(info_str, start_tag='<span class="szz-type">', end_tag='</span>'):
     """
     summary: pass in str
     Returns:
@@ -341,7 +345,7 @@ def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>')
     location_infos = []
     pattern = start_tag + '(.+?)' + end_tag
 
-    for idx,m_res in enumerate(re.finditer(r'{i}'.format(i=pattern), info_str)):
+    for idx, m_res in enumerate(re.finditer(r'{i}'.format(i=pattern), info_str)):
         location_info = []
 
         if idx == 0:
@@ -370,14 +374,14 @@ if __name__ == "__main__":
         dispatcher
     )
 
-    mysearch =SearchEngine()
+    mysearch = SearchEngine()
 
     @dispatcher.public
-    def search_news(keyword,page=0):
+    def search_news(keyword, page=0):
         """
         search interfer:
         """
-        return mysearch.search_news(keyword=keyword,page=page)
+        return mysearch.search_news(keyword=keyword, page=page)
 
     @dispatcher.public
     def write_news(data_json):
