@@ -60,7 +60,7 @@ class SearchEngine():
         self.count = 0
         self.init = False
         if os.path.exists('count'):
-            with open('count', 'r') as f_file:
+            with open('count', 'r', encoding='utf-8') as f_file:
                 try:
                     self.count = int(f_file.readlines()[0])
                 except Exception as error:
@@ -154,7 +154,7 @@ class SearchEngine():
             indexwriter.close()
             self.count += 1
             try:
-                with open('count', 'w') as f_file:
+                with open('count', 'w', encoding='utf-8') as f_file:
                     f_file.write(str(self.count))
             except Exception as error:
                 print(error)
