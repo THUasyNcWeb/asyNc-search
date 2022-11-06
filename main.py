@@ -182,6 +182,7 @@ class SearchEngine():
         # search_content = 'content:'+str('"'+keyword+'"')
         # query = queryParser.parse(search_content)
         boolquery = BooleanQuery.Builder()
+        print(keyword)
         for key in keyword:
             query_content = TermQuery(Term("content", key))
             query_title = TermQuery(Term("title", key))
@@ -203,7 +204,7 @@ class SearchEngine():
         searcher = IndexSearcher(indexreader)
         print("Start!")
         try:
-            topdocs = searcher.search(query, (page+1)*10)
+            topdocs = searcher.search(query, 100)
             total = int(str(topdocs.totalHits).replace(" hits", ''))
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
@@ -212,11 +213,12 @@ class SearchEngine():
                 news['news_list'] = []
                 news['message'] = "Success"
                 return news
-            start = page * 10
-            end = min(start+10, total)
+            # start = page * 10
+            # end = min(start+10,total)
             # topdocs = searcher.search(query, 10)
             # print("total:"+str(topdocs.totalHits))
-            scoredocs = topdocs.scoreDocs[start:end]
+            # scoredocs = topdocs.scoreDocs[start:end]
+            scoredocs = topdocs.scoreDocs[0:100]
             queryscorer = QueryScorer(query)
             simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
             lighter = Highlighter(simplehtmlformatter, queryscorer)
@@ -375,6 +377,7 @@ if __name__ == "__main__":
     )
 
     mysearch = SearchEngine()
+    print("Start")
 
     @dispatcher.public
     def search_news(keyword, page=0):
@@ -382,6 +385,14 @@ if __name__ == "__main__":
         search interfer:
         """
         return mysearch.search_news(keyword=keyword, page=page)
+
+    @dispatcher.public
+    def search_keywords(keyword, must_contain=[], must_not=[], page=0):
+        """
+        search interfer:
+        """
+        return mysearch.search_keywords(keyword=keyword, must_contain=must_contain,
+                                        must_not=must_not, page=page)
 
     @dispatcher.public
     def write_news(data_json):
