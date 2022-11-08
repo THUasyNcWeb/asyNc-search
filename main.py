@@ -205,7 +205,11 @@ class SearchEngine():
         print("Start!")
         try:
             topdocs = searcher.search(query, 100)
-            total = int(str(topdocs.totalHits).replace(" hits", ''))
+            try:
+                total = int(str(topdocs.totalHits).replace(" hits", ''))
+            except Exception as error:
+                print(error)
+                total = 990
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
                 news = {}
