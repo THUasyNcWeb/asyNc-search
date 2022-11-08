@@ -283,7 +283,11 @@ class SearchEngine():
             indexreader = DirectoryReader.open(directory)
             searcher = IndexSearcher(indexreader)
             topdocs = searcher.search(query, (page+1)*10)
-            total = int(str(topdocs.totalHits).replace(" hits", ''))
+            try:
+                total = int(str(topdocs.totalHits).replace(" hits", ''))
+            except Exception as error:
+                print(error)
+                total = 990
             print(total)
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
