@@ -1,10 +1,14 @@
-import lucene
+"""
+    Description: Searching Backend for Async Using Pylucene
+"""
 import json
-import sys,os
-import zmq
-import psycopg2
+import os
 import math
 import re
+import psycopg2
+
+import lucene
+
 
 import gevent
 import gevent.pywsgi
@@ -15,28 +19,31 @@ from tinyrpc.dispatch import RPCDispatcher
 from tinyrpc.protocols.jsonrpc import JSONRPCProtocol
 from tinyrpc.transports.wsgi import WsgiServerTransport
 
-from java.io import File
 from java.nio.file import Paths
-from org.apache.lucene.analysis import Analyzer
-from org.apache.lucene.analysis.standard import StandardAnalyzer
-from org.apache.lucene.document import Document, Field, FieldType, TextField, StringField, StoredField
+from org.apache.lucene.document import Document, Field, TextField, StoredField
 from org.apache.lucene.analysis.cn.smart import SmartChineseAnalyzer
-from org.apache.lucene.index import IndexWriter, Term, IndexWriterConfig, DirectoryReader 
-from org.apache.lucene.store import Directory, FSDirectory
-from org.apache.lucene.util import Version
-from org.apache.lucene.queryparser.classic import QueryParser, MultiFieldQueryParser, QueryParserBase
-from org.apache.lucene.search import IndexSearcher, Query, ScoreDoc, TopDocs
-from org.apache.lucene.search.highlight import Highlighter, QueryScorer, SimpleFragmenter, SimpleHTMLFormatter, Fragmenter, TokenSources, SimpleSpanFragmenter
+from org.apache.lucene.index import IndexWriter, Term
+from org.apache.lucene.index import IndexWriterConfig, DirectoryReader
+from org.apache.lucene.store import FSDirectory
+from org.apache.lucene.queryparser.classic import MultiFieldQueryParser
+from org.apache.lucene.search import IndexSearcher
+from org.apache.lucene.search.highlight import Highlighter, QueryScorer
+from org.apache.lucene.search.highlight import SimpleHTMLFormatter, TokenSources
 from org.apache.lucene.search import BooleanQuery, TermQuery, BooleanClause
-class search_engine(object):
-    
+
+
+class SearchEngine():
+    """
+    Class SearchEngin provide basic search function for searching
+    """
+
     def __init__(self):
         """
         init lucene and database
         """
         lucene.initVM()
-        self.analyzer = StandardAnalyzer()
-        self.indexConfig = IndexWriterConfig(self.analyzer)
+        self.analyzer = SmartChineseAnalyzer()
+        self.indexconfig = IndexWriterConfig(self.analyzer)
         '''
         Connect to the database
         '''
@@ -51,20 +58,28 @@ class search_engine(object):
             dbname=self.postgres[4])
         self.cur = self.connection.cursor()
         self.count = 0
+        self.init = False
         if os.path.exists('count'):
-            with open('count','r') as f:
+            with open('count', 'r', encoding='utf-8') as f_file:
                 try:
-                    self.count = int(f.readlines()[0])
-                except:
+                    self.count = int(f_file.readlines()[0])
+                except Exception as error:
+                    print(error)
                     self.count = 0
-        
+
     def check_db_status(self):
+        """
+        Function to check the status of bd
+        """
         query = r'select count(*) from news;'
         self.cur.execute(query)
         result = self.cur.fetchall()
         print(result)
-    
+
     def read_from_db(self):
+        """
+        Function to read data from status
+        """
         print("Start Reading Data From db")
         query = r'select * from news limit 10000 offset 0;'
         self.cur.execute(query)
@@ -79,22 +94,26 @@ class search_engine(object):
             data['title'] = result[5]
             data['content'] = result[7]
             data['first_img_url'] = result[8]
-            if data['first_img_url'] == None:
+            if data['first_img_url'] is None:
                 data['first_img_url'] = "None"
             data['pub_time'] = str(result[9])
             # data['news_id'] = str(result[0])
             data['title'] = result[5]
             data['content'] = result[7]
             self.add_news(data)
-        return len(result)
-        
-    def getDocument(self, data_json):
+        return len(results)
+
+    def get_document(self, data_json):
+        """
+        Return standard article type
+        """
+        self.init = True
         document = Document()
         # 给文档对象添加域
         # add方法: 把域添加到文档对象中, field参数: 要添加的域
         # TextField: 文本域, 属性name:域的名称, value:域的值, store:指定是否将域值保存到文档中
         # StringField: 不分词, 作为一个整体进行索引
-        if data_json['first_img_url'] == None or data_json['first_img_url'] == '': 
+        if data_json['first_img_url'] is None or data_json['first_img_url'] == '':
             data_json['first_img_url'] = "None"
         document.add(StoredField("first_img_url", data_json['first_img_url']))
         document.add(StoredField("news_url", data_json['news_url']))
@@ -105,9 +124,19 @@ class search_engine(object):
         document.add(TextField("category", str(data_json['category']), Field.Store.YES))
         document.add(TextField("tags", str(data_json['category']), Field.Store.YES))
         return document
-    
-    def add_news(self,data_json,file_path="index"):
-        if os.path.exists(file_path) == False:
+
+    def add_news(self, data_json, file_path="index"):
+        """add_news
+
+        Args:
+            data_json (_type_): data from crawler
+            file_path (str, optional): index file
+
+        Returns:
+            _type_: Bool:Success False:Failed
+
+        """
+        if os.path.exists(file_path) is False:
             os.mkdir(file_path)
         try:
             data_json = json.dumps(data_json)
@@ -116,53 +145,67 @@ class search_engine(object):
             return False
         try:
             analyzer = self.analyzer
-            indexConfig = IndexWriterConfig(analyzer)
+            indexconfig = IndexWriterConfig(analyzer)
             directory = FSDirectory.open(Paths.get(file_path))
-            indexWriter = IndexWriter(directory, indexConfig)
-            document = self.getDocument(data_json)
-            term = Term("news_url",data_json['news_url'])
-            indexWriter.updateDocument(term,document)
-            indexWriter.close()
+            indexwriter = IndexWriter(directory, indexconfig)
+            document = self.get_document(data_json)
+            term = Term("news_url", data_json['news_url'])
+            indexwriter.updateDocument(term, document)
+            indexwriter.close()
             self.count += 1
             try:
-                with open('count','w') as f:
-                    f.write(str(self.count))
-            except:
-                pass
+                with open('count', 'w', encoding='utf-8') as f_file:
+                    f_file.write(str(self.count))
+            except Exception as error:
+                print(error)
             return True
-        except:
+        except Exception as error:
+            print(error)
             return False
-    
-    def search_keywords(self,keyword,must_contain=[],must_not=[],page=0,file_path='index'):
+
+    def search_keywords(self, keyword, must_contain=[], must_not=[], page=0, file_path='index'):
+        """_summary_
+
+        Args:
+            keyword (_type_): keyword wanted to be searched
+            must_contain (list, optional): keywords must be contained Defaults to [].
+            must_not (list, optional): keywords must not be contained Defaults to [].
+            page (int, optional): page_num. Defaults to 0.
+            file_path (str, optional): index_file Defaults to 'index'.
+
+        Returns:
+            _type_: searching result
+        """
         # 参数一:默认的搜索域, 参数二:使用的分析器
         # queryParser = QueryParser("content", self.analyzer)
         # 2.2 使用查询解析器对象, 实例化Query对象
         # search_content = 'content:'+str('"'+keyword+'"')
         # query = queryParser.parse(search_content)
-        bq = BooleanQuery.Builder()
+        boolquery = BooleanQuery.Builder()
+        print(keyword)
         for key in keyword:
             query_content = TermQuery(Term("content", key))
             query_title = TermQuery(Term("title", key))
-            bq.add(query_content, BooleanClause.Occur.SHOULD)
-            bq.add(query_title, BooleanClause.Occur.SHOULD)
+            boolquery.add(query_content, BooleanClause.Occur.SHOULD)
+            boolquery.add(query_title, BooleanClause.Occur.SHOULD)
         for key_must in must_contain:
             query_content = TermQuery(Term("content", key_must))
             query_title = TermQuery(Term("title", key_must))
-            bq.add(query_content, BooleanClause.Occur.MUST)
-            bq.add(query_title, BooleanClause.Occur.MUST)
+            boolquery.add(query_content, BooleanClause.Occur.MUST)
+            boolquery.add(query_title, BooleanClause.Occur.MUST)
         for key_must_not in must_not:
             query_content = TermQuery(Term("content", key_must_not))
             query_title = TermQuery(Term("title", key_must_not))
-            bq.add(query_content, BooleanClause.Occur.MUST_NOT)
-            bq.add(query_title, BooleanClause.Occur.MUST_NOT)
-        query = bq.build()          
+            boolquery.add(query_content, BooleanClause.Occur.MUST_NOT)
+            boolquery.add(query_title, BooleanClause.Occur.MUST_NOT)
+        query = boolquery.build()
         directory = FSDirectory.open(Paths.get(file_path))
-        indexReader = DirectoryReader.open(directory)
-        searcher = IndexSearcher(indexReader)
+        indexreader = DirectoryReader.open(directory)
+        searcher = IndexSearcher(indexreader)
         print("Start!")
         try:
-            topDocs = searcher.search(query, (page+1)*10)
-            total = int(str(topDocs.totalHits).replace(" hits",''))
+            topdocs = searcher.search(query, 100)
+            total = int(str(topdocs.totalHits).replace(" hits", ''))
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
                 news = {}
@@ -170,21 +213,22 @@ class search_engine(object):
                 news['news_list'] = []
                 news['message'] = "Success"
                 return news
-            start = page * 10
-            end = min(start+10,total)
-            # topDocs = searcher.search(query, 10)
-            # print("total:"+str(topDocs.totalHits))
-            scoreDocs = topDocs.scoreDocs[start:end]
-            qs = QueryScorer(query)
-            simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
-            lighter = Highlighter(simpleHTMLFormatter,qs)
+            # start = page * 10
+            # end = min(start+10,total)
+            # topdocs = searcher.search(query, 10)
+            # print("total:"+str(topdocs.totalHits))
+            # scoredocs = topdocs.scoreDocs[start:end]
+            scoredocs = topdocs.scoreDocs[0:100]
+            queryscorer = QueryScorer(query)
+            simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
+            lighter = Highlighter(simplehtmlformatter, queryscorer)
             news_list = []
-            for scoreDoc in scoreDocs:
-                docId = scoreDoc.doc
-                score = scoreDoc.score
-                doc = searcher.doc(docId)
-                tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
-                content = lighter.getBestFragment(tokenStream, doc.get('content'))
+            for scoredoc in scoredocs:
+                docid = scoredoc.doc
+                # score = scoredoc.score
+                doc = searcher.doc(docid)
+                tokenstream = TokenSources.getTokenStream(doc, "content", self.analyzer)
+                content = lighter.getBestFragment(tokenstream, doc.get('content'))
                 new = {}
                 new['title'] = doc.get('title')
                 new['media'] = doc.get('media')
@@ -193,35 +237,49 @@ class search_engine(object):
                 new['content'] = content
                 new['picture_url'] = doc.get('first_img_url')
                 new['tags'] = doc.get('tags')
-                if new['picture_url']=='None':
+                if new['picture_url'] == 'None':
                     new['picture_url'] = ""
                 news_list += [new]
-            indexReader.close()
+            indexreader.close()
             news = {}
-            news['total'] = int(str(topDocs.totalHits).replace(" hits",''))
+            news['total'] = int(str(topdocs.totalHits).replace(" hits", ''))
             news['news_list'] = news_list
             news['message'] = "Success"
             return news
-        except:
+        except Exception as error:
+            print(error)
             news = {}
             news['total'] = 0
             news['news_list'] = []
             news['message'] = "Error"
             return news
 
-    def search_news(self,keyword,page=0,file_path='index'):
+    def search_news(self, keyword, page=0, file_path='index'):
+        """_summary_
+
+        Args:
+            keyword (_type_): keyword wanted to be searched
+            page (int, optional): pagenum. Defaults to 0.
+            file_path (str, optional): index file. Defaults to 'index'.
+
+        Returns:
+            _type_: news_list
+        """
         print("Searching begin")
         try:
             # 参数一:默认的搜索域, 参数二:使用的分析器
-            fields = ["content","title"]
-            queryParser = MultiFieldQueryParser(fields, self.analyzer)
+            fields = ["content", "title"]
+            query_parser = MultiFieldQueryParser(fields, self.analyzer)
             # 2.2 使用查询解析器对象, 实例化Query对象
-            query = queryParser.parse([str(keyword),str(keyword)],fields,[BooleanClause.Occur.SHOULD,BooleanClause.Occur.SHOULD],self.analyzer)
+            query = query_parser.parse([str(keyword), str(keyword)], fields,
+                                       [BooleanClause.Occur.SHOULD, BooleanClause.Occur.SHOULD],
+                                       self.analyzer)
+
             directory = FSDirectory.open(Paths.get(file_path))
-            indexReader = DirectoryReader.open(directory)
-            searcher = IndexSearcher(indexReader)
-            topDocs = searcher.search(query, (page+1)*10)
-            total = int(str(topDocs.totalHits).replace(" hits",''))
+            indexreader = DirectoryReader.open(directory)
+            searcher = IndexSearcher(indexreader)
+            topdocs = searcher.search(query, (page+1)*10)
+            total = int(str(topdocs.totalHits).replace(" hits", ''))
             print(total)
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
@@ -231,24 +289,24 @@ class search_engine(object):
                 news['message'] = "Success"
                 return news
             start = page * 10
-            end = min(start+10,total)
-            scoreDocs = topDocs.scoreDocs
-            qs = QueryScorer(query)
-            simpleHTMLFormatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
-            lighter = Highlighter(simpleHTMLFormatter,qs)
+            end = min(start+10, total)
+            scoredocs = topdocs.scoreDocs
+            query_scorer = QueryScorer(query)
+            simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
+            lighter = Highlighter(simplehtmlformatter, query_scorer)
             news_list = []
             for i in range(end-start):
-                scoreDoc = scoreDocs[start+i]
-                docId = scoreDoc.doc
-                score = scoreDoc.score
-                doc = searcher.doc(docId)
-                tokenStream = TokenSources.getTokenStream(doc, "content", self.analyzer)
-                content = lighter.getBestFragment(tokenStream, doc.get('content'))
-                tokenStream = TokenSources.getTokenStream(doc, "title", self.analyzer)
-                title = lighter.getBestFragment(tokenStream, doc.get('title'))
-                if title == None:
+                scoredoc = scoredocs[start+i]
+                docid = scoredoc.doc
+                # score = scoreDoc.score
+                doc = searcher.doc(docid)
+                tokenstream = TokenSources.getTokenStream(doc, "content", self.analyzer)
+                content = lighter.getBestFragment(tokenstream, doc.get('content'))
+                tokenstream = TokenSources.getTokenStream(doc, "title", self.analyzer)
+                title = lighter.getBestFragment(tokenstream, doc.get('title'))
+                if title is None:
                     title = doc.get('title')
-                if content == None:
+                if content is None:
                     content = doc.get('content')
                 new = {}
                 new['title'] = title
@@ -258,24 +316,26 @@ class search_engine(object):
                 new['content'] = content
                 new['picture_url'] = doc.get('first_img_url')
                 new['tags'] = doc.get('tags')
-                if new['picture_url']=='None':
+                if new['picture_url'] == 'None':
                     new['picture_url'] = ""
                 news_list += [new]
-            indexReader.close()
+            indexreader.close()
             print("Searching End!")
             news = {}
             news['total'] = total
             news['news_list'] = news_list
             news['message'] = "Success"
             return news
-        except:
+        except Exception as error:
+            print(error)
             news = {}
             news['total'] = 0
             news['news_list'] = []
             news['message'] = "Error"
             return news
 
-def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>'):
+
+def get_location(info_str, start_tag='<span class="szz-type">', end_tag='</span>'):
     """
     summary: pass in str
     Returns:
@@ -287,7 +347,7 @@ def get_location(info_str,start_tag='<span class="szz-type">',end_tag='</span>')
     location_infos = []
     pattern = start_tag + '(.+?)' + end_tag
 
-    for idx,m_res in enumerate(re.finditer(r'{i}'.format(i=pattern), info_str)):
+    for idx, m_res in enumerate(re.finditer(r'{i}'.format(i=pattern), info_str)):
         location_info = []
 
         if idx == 0:
@@ -315,23 +375,44 @@ if __name__ == "__main__":
         JSONRPCProtocol(),
         dispatcher
     )
-    
-    mysearch =search_engine()
+
+    mysearch = SearchEngine()
+    print("Start")
 
     @dispatcher.public
-    def search_news(keyword,page=0):
-        return mysearch.search_news(keyword=keyword,page=page)
+    def search_news(keyword, page=0):
+        """
+        search interfer:
+        """
+        return mysearch.search_news(keyword=keyword, page=page)
+
+    @dispatcher.public
+    def search_keywords(keyword, must_contain=[], must_not=[], page=0):
+        """
+        search interfer:
+        """
+        return mysearch.search_keywords(keyword=keyword, must_contain=must_contain,
+                                        must_not=must_not, page=page)
 
     @dispatcher.public
     def write_news(data_json):
+        """
+        write interfer:
+        """
         return mysearch.add_news(data_json=data_json)
 
     @dispatcher.public
     def read_from_db():
+        """
+        read interfer:
+        """
         return mysearch.read_from_db()
 
     @dispatcher.public
     def test_connection():
+        """
+        just for test
+        """
         return "Success"
 
     rpc_server.serve_forever()
