@@ -5,12 +5,13 @@ import json
 import os
 import time
 import logging
+import threading
 import psycopg2
 import schedule
 import lucene
 
 from java.nio.file import Paths
-from org.apache.lucene.document import Document, Field, TextField, StoredField
+from org.apache.lucene.document import Document, Field, TextField, StoredField, StringField
 from org.apache.lucene.analysis.cn.smart import SmartChineseAnalyzer
 from org.apache.lucene.index import IndexWriter, Term
 from org.apache.lucene.index import IndexWriterConfig
@@ -107,7 +108,7 @@ class SearchEngine():
             data_json['first_img_url'] = "None"
         document.add(StoredField("first_img_url", data_json['first_img_url']))
         document.add(StoredField("news_url", data_json['news_url']))
-        document.add(StoredField("news_id", data_json['news_id']))
+        document.add(StringField("news_id", str(data_json['news_id']), Field.Store.YES))
         document.add(StoredField("pub_time", data_json['pub_time']))
         document.add(TextField("title", data_json['title'], Field.Store.YES))
         document.add(TextField("content", data_json['content'], Field.Store.YES))
@@ -154,14 +155,59 @@ class SearchEngine():
             print(error)
             return False
 
+    def read_thread(self, start, file_path="index"):
+        """open read threads
+
+        Args:
+            start (_type_): where to start
+            file_path (str, optional): _description_. Defaults to "index".
+        """
+        analyzer = self.analyzer
+        indexconfig = IndexWriterConfig(analyzer)
+        directory = FSDirectory.open(Paths.get(file_path))
+        indexwriter = IndexWriter(directory, indexconfig)
+
+        def read_db(start=start):
+            logger.info("Start Reading Data From db")
+            query = ('select * from news where id>={i} and id<{j};'.format(i=start, j=start+500))
+            print(query)
+            self.cur.execute(query)
+            results = self.cur.fetchall()
+            data = {}
+            for result in results:
+                logger.info(str("Current Id: "+str(result[0])+"\nCurrent URL: "+str(result[1])))
+                data['news_id'] = str(result[0])
+                data['news_url'] = result[1]
+                data['media'] = result[2]
+                data['category'] = result[3]
+                data['tags'] = result[4]
+                data['title'] = result[5]
+                data['content'] = result[7]
+                data['first_img_url'] = result[8]
+                if data['first_img_url'] is None:
+                    data['first_img_url'] = "None"
+                data['pub_time'] = str(result[9])
+                data['title'] = result[5]
+                data['content'] = result[7]
+                document = self.get_document(data)
+                term = Term("news_id", data['news_id'])
+                indexwriter.updateDocument(term, document)
+        for i in range(10):
+            thread = threading.Thread(target=read_db(current_id[0]+500*i))
+            thread.start()
+        start[0] = start[0] + 5000
+        indexwriter.close()
+        with open('dbcount/count.txt', 'w', encoding="utf-8") as file_write:
+            file_write.write(str(start[0]))
+
 
 if __name__ == "__main__":
     current_id = [0]
     if not os.path.exists('dbcount'):
         os.mkdir("dbcount")
-        with open("dbcount/count.txt", 'w') as file_writer:
+        with open("dbcount/count.txt", 'w', encoding="utf-8") as file_writer:
             file_writer.write("0")
-    with open('dbcount/count.txt', 'r') as file_read:
+    with open('dbcount/count.txt', 'r', encoding="utf-8") as file_read:
         max_id = file_read.readline()
         current_id[0] = int(max_id)
     mysearch = SearchEngine()
@@ -177,9 +223,20 @@ if __name__ == "__main__":
         else:
             mysearch.read_from_db(current, 100)
             current[0] = current[0] + 100
-            with open('dbcount/count.txt', 'w') as file_write:
+            with open('dbcount/count.txt', 'w', encoding="utf-8") as file_write:
                 file_write.write(str(current[0]))
-    schedule.every(1).seconds.do(read_format, current_id)
+
+    def read_format_threading(current):
+        """_summary_
+
+        Args:
+            current (current_id : list): read data from db
+        """
+        if current[0] > int(mysearch.check_db_status()[0]):
+            logger.info("All News Has Been Read!")
+        else:
+            mysearch.read_thread(current)
+    schedule.every(1).seconds.do(read_format_threading, current_id)
     time.sleep(1)
     while True:
         schedule.run_pending()
