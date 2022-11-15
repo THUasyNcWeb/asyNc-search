@@ -76,7 +76,7 @@ class SearchEngine():
         results = self.cur.fetchall()
         for result in results:
             data = {}
-            logger.info(str("Current Id: "+str(result[0])+"Current URL: "+str(result[1])))
+            logger.info(str("Current Id: "+str(result[0])+"\nCurrent URL: "+str(result[1])))
             data['news_id'] = str(result[0])
             data['news_url'] = result[1]
             data['media'] = result[2]
@@ -157,10 +157,11 @@ class SearchEngine():
 
 if __name__ == "__main__":
     current_id = [0]
-    if not os.path.exists('count.txt'):
-        with open("count.txt", 'w') as file_writer:
+    if not os.path.exists('dbcount'):
+        os.mkdir("dbcount")
+        with open("dbcount/count.txt", 'w') as file_writer:
             file_writer.write("0")
-    with open('count.txt', 'r') as file_read:
+    with open('dbcount/count.txt', 'r') as file_read:
         max_id = file_read.readline()
         current_id[0] = int(max_id)
     mysearch = SearchEngine()
@@ -176,7 +177,7 @@ if __name__ == "__main__":
         else:
             mysearch.read_from_db(current, 100)
             current[0] = current[0] + 100
-            with open('count.txt', 'w') as file_write:
+            with open('dbcount/count.txt', 'w') as file_write:
                 file_write.write(str(current[0]))
     schedule.every(1).seconds.do(read_format, current_id)
     time.sleep(1)
