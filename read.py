@@ -76,14 +76,12 @@ class SearchEngine():
         results = self.cur.fetchall()
         for result in results:
             data = {}
-            logger.info(str("Current Id: "+str(result[0])))
-            logger.info(str("Current URL: "+str(result[1])))
+            logger.info(str("Current Id: "+str(result[0])+"Current URL: "+str(result[1])))
             data['news_id'] = str(result[0])
             data['news_url'] = result[1]
             data['media'] = result[2]
             data['category'] = result[3]
             data['tags'] = result[4]
-            print(result[5])
             data['title'] = result[5]
             data['content'] = result[7]
             data['first_img_url'] = result[8]
@@ -176,11 +174,11 @@ if __name__ == "__main__":
         if current[0] > int(mysearch.check_db_status()[0]):
             logger.info("All News Has Been Read!")
         else:
-            mysearch.read_from_db(current, 50)
-            current[0] = current[0] + 50
+            mysearch.read_from_db(current, 100)
+            current[0] = current[0] + 100
             with open('count.txt', 'w') as file_write:
                 file_write.write(str(current[0]))
-    schedule.every(2).seconds.do(read_format, current_id)
+    schedule.every(1).seconds.do(read_format, current_id)
     time.sleep(1)
     while True:
         schedule.run_pending()
