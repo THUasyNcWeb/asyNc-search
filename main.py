@@ -5,6 +5,8 @@ import json
 import os
 import math
 import re
+import threading
+from threading import Thread
 import psycopg2
 
 import lucene
@@ -342,6 +344,94 @@ class SearchEngine():
             news['message'] = "Error"
             return news
 
+    def search_news_thread(self, keyword, file_path='index', page=0):
+        """_summary_
+
+        Args:
+            keyword (_type_): keyword wanted to be searched
+            page (int, optional): pagenum. Defaults to 0.
+            file_path (str, optional): index file. Defaults to 'index'.
+
+        Returns:
+            _type_: news_list
+        """
+        print("Searching begin")
+        lucene.getVMEnv().attachCurrentThread()
+        try:
+            # 参数一:默认的搜索域, 参数二:使用的分析器
+            fields = ["content", "title"]
+            query_parser = MultiFieldQueryParser(fields, self.analyzer)
+            # 2.2 使用查询解析器对象, 实例化Query对象
+            query = query_parser.parse([str(keyword), str(keyword)], fields,
+                                       [BooleanClause.Occur.SHOULD, BooleanClause.Occur.SHOULD],
+                                       self.analyzer)
+
+            directory = FSDirectory.open(Paths.get(file_path))
+            indexreader = DirectoryReader.open(directory)
+            searcher = IndexSearcher(indexreader)
+            topdocs = searcher.search(query, 100)
+            try:
+                total = int(str(topdocs.totalHits).replace(" hits", ''))
+            except Exception as error:
+                print(error)
+                total = 990
+            if total > 100:
+                total = 100
+            total_page = math.ceil(total/10)-1
+            if page > total_page + 1 or page < 0:
+                news = {}
+                news['total'] = 0
+                news['news_list'] = []
+                news['message'] = "Success"
+                return news
+            start = page * 10
+            end = total
+            scoredocs = topdocs.scoreDocs
+            query_scorer = QueryScorer(query)
+            simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
+            lighter = Highlighter(simplehtmlformatter, query_scorer)
+            news_list = []
+            for i in range(end-start):
+                scoredoc = scoredocs[start+i]
+                docid = scoredoc.doc
+                score = scoredoc.score
+                doc = searcher.doc(docid)
+                tokenstream = TokenSources.getTokenStream(doc, "content", self.analyzer)
+                content = lighter.getBestFragment(tokenstream, doc.get('content'))
+                tokenstream = TokenSources.getTokenStream(doc, "title", self.analyzer)
+                title = lighter.getBestFragment(tokenstream, doc.get('title'))
+                if title is None:
+                    title = doc.get('title')
+                if content is None:
+                    content = doc.get('content')
+                new = {}
+                new['title'] = title
+                new['media'] = doc.get('media')
+                new['url'] = doc.get('news_url')
+                new['pub_time'] = doc.get('pub_time')
+                new['content'] = content
+                new['picture_url'] = doc.get('first_img_url')
+                new['tags'] = doc.get('tags')
+                new['score'] = score
+                new['news_id'] = doc.get('news_id')
+                if new['picture_url'] == 'None':
+                    new['picture_url'] = ""
+                news_list += [new]
+            indexreader.close()
+            print("Searching End!")
+            news = {}
+            news['total'] = total
+            news['news_list'] = news_list
+            news['message'] = "Success"
+            return news
+        except Exception as error:
+            print(error)
+            news = {}
+            news['total'] = 0
+            news['news_list'] = []
+            news['message'] = "Error"
+            return news
+
 
 def get_location(info_str, start_tag='<span class="szz-type">', end_tag='</span>'):
     """
@@ -370,6 +460,32 @@ def get_location(info_str, start_tag='<span class="szz-type">', end_tag='</span>
     return location_infos
 
 
+class MyThread(Thread):
+    """_summary_
+
+    Args:
+        Thread (_type_): build my thread
+    """
+    def __init__(self, func, args):
+        super().__init__()
+        self.func = func
+        self.args = args
+
+    def run(self):
+        self.result = self.func(*self.args)
+
+    def get_result(self):
+        """_summary_
+
+        Returns:
+            _type_: get return result
+        """
+        try:
+            return self.result
+        except Exception:
+            return None
+
+
 if __name__ == "__main__":
     dispatcher = RPCDispatcher()
     transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
@@ -392,7 +508,23 @@ if __name__ == "__main__":
         """
         search interfer:
         """
-        return mysearch.search_news(keyword=keyword, page=page)
+        threads = []
+        for i in range(1, 11):
+            thread = MyThread(mysearch.search_news_thread, (keyword, "index/index"+str(i), page))
+            thread.start()
+            threads += [thread]
+        for i in range(0, 10):
+            threads[i].join()
+        news_results = {}
+        news_results['message'] = "Success"
+        total = 0
+        news_list = []
+        for i in range(10):
+            total += threads[i].get_result()['total']
+            news_list += threads[i].get_result()['news_list']
+        news_results['total'] = total
+        news_results['news_list'] = news_list
+        return news_results
 
     @dispatcher.public
     def search_keywords(keyword, must_contain=[], must_not=[], page=0):
