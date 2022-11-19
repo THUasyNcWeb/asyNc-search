@@ -305,8 +305,8 @@ class SearchEngine():
             simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
             lighter = Highlighter(simplehtmlformatter, query_scorer)
             news_list = []
-            for i in range(end-start):
-                scoredoc = scoredocs[start+i]
+            for index in range(end-start):
+                scoredoc = scoredocs[start+index]
                 docid = scoredoc.doc
                 # score = scoreDoc.score
                 doc = searcher.doc(docid)
@@ -344,7 +344,7 @@ class SearchEngine():
             news['message'] = "Error"
             return news
 
-    def search_news_thread(self, keyword, file_path='index', page=0):
+    def search_news_thread(self, keyword, searcher, page=0):
         """_summary_
 
         Args:
@@ -365,34 +365,29 @@ class SearchEngine():
             query = query_parser.parse([str(keyword), str(keyword)], fields,
                                        [BooleanClause.Occur.SHOULD, BooleanClause.Occur.SHOULD],
                                        self.analyzer)
-
-            directory = FSDirectory.open(Paths.get(file_path))
-            indexreader = DirectoryReader.open(directory)
-            searcher = IndexSearcher(indexreader)
             topdocs = searcher.search(query, 100)
             try:
                 total = int(str(topdocs.totalHits).replace(" hits", ''))
             except Exception as error:
                 print(error)
                 total = 990
-            if total > 100:
-                total = 100
+            total = min(total, 100)
             total_page = math.ceil(total/10)-1
-            if page > total_page + 1 or page < 0:
+            if page / 10 > total_page + 1 or page < 0:
                 news = {}
                 news['total'] = 0
                 news['news_list'] = []
                 news['message'] = "Success"
                 return news
-            start = page * 10
-            end = total
+            start = (int(page / 10)) * 10
+            end = min(total, start + 10)
             scoredocs = topdocs.scoreDocs
             query_scorer = QueryScorer(query)
             simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
             lighter = Highlighter(simplehtmlformatter, query_scorer)
             news_list = []
-            for i in range(end-start):
-                scoredoc = scoredocs[start+i]
+            for index in range(end-start):
+                scoredoc = scoredocs[start+index]
                 docid = scoredoc.doc
                 score = scoredoc.score
                 doc = searcher.doc(docid)
@@ -417,7 +412,6 @@ class SearchEngine():
                 if new['picture_url'] == 'None':
                     new['picture_url'] = ""
                 news_list += [new]
-            indexreader.close()
             print("Searching End!")
             news = {}
             news['total'] = total
@@ -501,6 +495,16 @@ if __name__ == "__main__":
     )
 
     mysearch = SearchEngine()
+    paths = []
+    indexreaders = []
+    searchers = []
+    for i in range(1, 11):
+        paths += ["index/index" + str(i)]
+        directoryt = FSDirectory.open(Paths.get("index/index" + str(i)))
+        indexreadert = DirectoryReader.open(directoryt)
+        indexreaders += [indexreadert]
+        searchert = IndexSearcher(indexreadert)
+        searchers += [searchert]
     print("Start")
 
     @dispatcher.public
@@ -509,19 +513,20 @@ if __name__ == "__main__":
         search interfer:
         """
         threads = []
-        for i in range(1, 11):
-            thread = MyThread(mysearch.search_news_thread, (keyword, "index/index"+str(i), page))
+        for index in range(1, 11):
+            thread = MyThread(mysearch.search_news_thread,
+                              (keyword, searchers[index-1], page))
             thread.start()
             threads += [thread]
-        for i in range(0, 10):
-            threads[i].join()
+        for idx in range(0, 10):
+            threads[idx].join()
         news_results = {}
         news_results['message'] = "Success"
         total = 0
         news_list = []
-        for i in range(10):
-            total += threads[i].get_result()['total']
-            news_list += threads[i].get_result()['news_list']
+        for idx in range(10):
+            total += threads[idx].get_result()['total']
+            news_list += threads[idx].get_result()['news_list']
         news_results['total'] = total
         news_results['news_list'] = news_list
         return news_results
