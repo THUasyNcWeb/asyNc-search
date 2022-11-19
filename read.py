@@ -155,21 +155,30 @@ class SearchEngine():
             print(error)
             return False
 
-    def read_thread(self, start, file_path="index"):
+    def read_thread(self, start, index_path, total=5000):
+
         """open read threads
 
         Args:
             start (_type_): where to start
             file_path (str, optional): _description_. Defaults to "index".
         """
-        analyzer = self.analyzer
-        indexconfig = IndexWriterConfig(analyzer)
-        directory = FSDirectory.open(Paths.get(file_path))
-        indexwriter = IndexWriter(directory, indexconfig)
+        indexwriters = []
+        for file_path in index_path:
+            indexconfig = IndexWriterConfig(self.analyzer)
+            directory = FSDirectory.open(Paths.get(file_path))
+            indexwriters += [IndexWriter(directory, indexconfig)]
 
-        def read_db(start=start):
+        def read_db(indexwriter, start=start, num=500):
+            """_summary_
+
+            Args:
+                indexwriter (_type_): _description_
+                start (_type_, optional): _description_. Defaults to start.
+                num (int, optional): _description_. Defaults to 500.
+            """
             logger.info("Start Reading Data From db")
-            query = ('select * from news where id>={i} and id<{j};'.format(i=start, j=start+500))
+            query = ('select * from news where id>={i} and id<{j};'.format(i=start, j=start+num))
             print(query)
             self.cur.execute(query)
             results = self.cur.fetchall()
@@ -192,39 +201,38 @@ class SearchEngine():
                 document = self.get_document(data)
                 term = Term("news_id", data['news_id'])
                 indexwriter.updateDocument(term, document)
-        for i in range(10):
-            thread = threading.Thread(target=read_db(current_id[0]+500*i))
+            indexwriter.close()
+        average = int(total / 10)
+        for index in range(0, 10):
+            thread = threading.Thread(target=read_db(indexwriters[index],
+                                                     current_id[0]+average*index, num=average))
             thread.start()
-        start[0] = start[0] + 5000
-        indexwriter.close()
+        start[0] = start[0] + average * 10
         with open('dbcount/count.txt', 'w', encoding="utf-8") as file_write:
             file_write.write(str(start[0]))
 
 
 if __name__ == "__main__":
+
+    mysearch = SearchEngine()
     current_id = [0]
     if not os.path.exists('dbcount'):
         os.mkdir("dbcount")
         with open("dbcount/count.txt", 'w', encoding="utf-8") as file_writer:
             file_writer.write("0")
+    if not os.path.exists('dbcount/count.txt'):
+        with open("dbcount/count.txt", 'w', encoding="utf-8") as file_writer:
+            file_writer.write("0")
     with open('dbcount/count.txt', 'r', encoding="utf-8") as file_read:
         max_id = file_read.readline()
         current_id[0] = int(max_id)
-    mysearch = SearchEngine()
-
-    def read_format(current):
-        """_summary_
-
-        Args:
-            current (current_id : list): read data from db
-        """
-        if current[0] > int(mysearch.check_db_status()[0]):
-            logger.info("All News Has Been Read!")
-        else:
-            mysearch.read_from_db(current, 100)
-            current[0] = current[0] + 100
-            with open('dbcount/count.txt', 'w', encoding="utf-8") as file_write:
-                file_write.write(str(current[0]))
+    dir_list = []
+    if not os.path.exists('index'):
+        os.mkdir('index')
+    for i in range(1, 11):
+        dir_list += ['index/index' + str(i)]
+        if not os.path.exists('index/index'+str(i)):
+            os.mkdir('index/index' + str(i))
 
     def read_format_threading(current):
         """_summary_
@@ -232,10 +240,14 @@ if __name__ == "__main__":
         Args:
             current (current_id : list): read data from db
         """
-        if current[0] > int(mysearch.check_db_status()[0]):
-            logger.info("All News Has Been Read!")
-        else:
-            mysearch.read_thread(current)
+        db_total = int(mysearch.check_db_status()[0])
+        total = min(5000, db_total-current[0])
+        total_info = str("total: "+str(db_total))
+        write = str(total)+" to be write"
+        logger.info(total_info)
+        logger.info(write)
+        mysearch.read_thread(current, dir_list, total)
+
     schedule.every(1).seconds.do(read_format_threading, current_id)
     time.sleep(1)
     while True:
