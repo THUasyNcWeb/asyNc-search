@@ -1,3 +1,2 @@
 nginx
-python main.py
-python read.py
+python3 main.py
