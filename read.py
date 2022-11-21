@@ -114,7 +114,7 @@ class SearchEngine():
         document.add(TextField("content", data_json['content'], Field.Store.YES))
         document.add(TextField("media", data_json['media'], Field.Store.YES))
         document.add(TextField("category", str(data_json['category']), Field.Store.YES))
-        document.add(TextField("tags", str(data_json['category']), Field.Store.YES))
+        document.add(TextField("tags", str(data_json['tags']), Field.Store.YES))
         return document
 
     def add_news(self, data_json, file_path="index"):
