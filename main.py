@@ -4,6 +4,7 @@
 import json
 import os
 import math
+import time
 import re
 import threading
 from threading import Thread
@@ -513,6 +514,7 @@ if __name__ == "__main__":
         search interfer:
         """
         threads = []
+        start = time.time()
         for index in range(1, 11):
             thread = MyThread(mysearch.search_news_thread,
                               (keyword, searchers[index-1], page))
@@ -527,8 +529,10 @@ if __name__ == "__main__":
         for idx in range(10):
             total += threads[idx].get_result()['total']
             news_list += threads[idx].get_result()['news_list']
+        end = time.time()
         news_results['total'] = total
         news_results['news_list'] = news_list
+        news_results['time'] = end - start
         return news_results
 
     @dispatcher.public
