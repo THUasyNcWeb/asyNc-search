@@ -345,7 +345,7 @@ class SearchEngine():
             news['message'] = "Error"
             return news
 
-    def search_news_thread(self, keyword, searcher, page=0):
+    def search_news_thread(self, keyword, searcher, page=0, sort=False):
         """_summary_
 
         Args:
@@ -378,6 +378,32 @@ class SearchEngine():
                 news = {}
                 news['total'] = 0
                 news['news_list'] = []
+                news['message'] = "Success"
+                return news
+            if sort is True:
+                news_list = []
+                scoredocs = topdocs.scoreDocs
+                for idx in range(total):
+                    scoredoc = scoredocs[idx]
+                    docid = scoredoc.doc
+                    score = scoredoc.score
+                    doc = searcher.doc(docid)
+                    new = {}
+                    new['title'] = doc.get('title')
+                    new['media'] = doc.get('media')
+                    new['url'] = doc.get('news_url')
+                    new['pub_time'] = doc.get('pub_time')
+                    new['content'] = doc.get('content')
+                    new['picture_url'] = doc.get('first_img_url')
+                    new['tags'] = doc.get('tags')
+                    new['score'] = score
+                    new['news_id'] = doc.get('news_id')
+                    if new['picture_url'] == 'None':
+                        new['picture_url'] = ""
+                    news_list += [new]
+                news = {}
+                news['total'] = total
+                news['news_list'] = news_list
                 news['message'] = "Success"
                 return news
             start = (int(page / 10)) * 10
@@ -509,7 +535,7 @@ if __name__ == "__main__":
     print("Start")
 
     @dispatcher.public
-    def search_news(keyword, page=0):
+    def search_news(keyword, page=0, sort=False):
         """
         search interfer:
         """
@@ -517,7 +543,7 @@ if __name__ == "__main__":
         start = time.time()
         for index in range(1, 11):
             thread = MyThread(mysearch.search_news_thread,
-                              (keyword, searchers[index-1], page))
+                              (keyword, searchers[index-1], page, sort))
             thread.start()
             threads += [thread]
         for idx in range(0, 10):
@@ -532,7 +558,7 @@ if __name__ == "__main__":
         end = time.time()
         news_results['total'] = total
         news_results['news_list'] = news_list
-        news_results['time'] = end - start
+        news_results['time'] = start - end
         return news_results
 
     @dispatcher.public
