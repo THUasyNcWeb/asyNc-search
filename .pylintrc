@@ -16,4 +16,4 @@
 # no Warning level messages displayed, use"--disable=all --enable=classes
 # --disable=W"
 
-disable=too-few-public-methods, import-error, too-many-arguments, broad-except, too-many-return-statements, no-member, wildcard-import, too-many-locals, consider-using-f-string, consider-using-enumerate, too-many-branches, dangerous-default-value, too-many-statements, attribute-defined-outside-init, unused-import
+disable=too-few-public-methods, import-error, too-many-arguments, broad-except, too-many-return-statements, no-member, wildcard-import, too-many-locals, consider-using-f-string, consider-using-enumerate, too-many-branches, dangerous-default-value, too-many-statements, attribute-defined-outside-init, unused-import, redefined-outer-name
