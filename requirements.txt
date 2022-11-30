@@ -1,3 +1,6 @@
 zmq
 tinyrpc
 psycopg2-binary
+gevent
+werkzeug
+schedule

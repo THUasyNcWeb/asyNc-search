@@ -2,6 +2,7 @@ image: registry.secoder.net/tool/deployer
 
 stages:
   - build
+  - test
   - deploy
 
 build:
@@ -12,6 +13,26 @@ build:
     - export BUILD_IMAGE_USERNAME=$CI_REGISTRY_USER
     - export BUILD_IMAGE_PASSWORD=$CI_REGISTRY_PASSWORD
     - deployer build
+
+style-test:
+  image: python:3.9
+  stage: test
+  allow_failure: true
+
+  before_script:
+    - pip install -i https://pypi.tuna.tsinghua.edu.cn/simple -r requirements.txt pycodestyle pylint
+  script:
+    - pycodestyle main.py --config=.pycodestyle
+    - PYCODESTYLE_RET=$?
+    - pylint main.py
+    - PYLINT_RET=$?
+    - if [ $PYCODESTYLE_RET \> 0 ]; then exit $PYCODESTYLE_RET; fi;
+    - exit $PYLINT_RET
+  after_script:
+    - SUFFIX=$RANDOM
+    - curl "http://api.secoder.net/static/sonar-scanner.tar.gz" -s -o "/tmp/sonar-$SUFFIX.tar.gz"
+    - tar -xf "/tmp/sonar-$SUFFIX.tar.gz"  -C /opt
+    - /opt/sonar-scanner/bin/sonar-scanner
 
 deploy:
   stage: deploy
