@@ -61,7 +61,7 @@ class SearchEngine():
         """
         Function to check the status of bd
         """
-        query = r'select count(*) from news;'
+        query = r'select max(id) from news;'
         self.cur.execute(query)
         result = self.cur.fetchall()
         return result[0]

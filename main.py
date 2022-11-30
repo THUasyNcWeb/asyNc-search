@@ -50,16 +50,16 @@ class SearchEngine():
         '''
         Connect to the database
         '''
-        with open('config/config.json', 'r', encoding='utf-8') as file:
-            config = json.load(file)
-        self.postgres = (config['hostname'], config['port'],
-                         config['username'], config['password'],
-                         config['database'])
-        self.connection = psycopg2.connect(
-            host=self.postgres[0], port=self.postgres[1],
-            user=self.postgres[2], password=self.postgres[3],
-            dbname=self.postgres[4])
-        self.cur = self.connection.cursor()
+        # with open('config/config.json', 'r', encoding='utf-8') as file:
+        #     config = json.load(file)
+        # self.postgres = (config['hostname'], config['port'],
+        #                  config['username'], config['password'],
+        #                  config['database'])
+        # self.connection = psycopg2.connect(
+        #     host=self.postgres[0], port=self.postgres[1],
+        #     user=self.postgres[2], password=self.postgres[3],
+        #     dbname=self.postgres[4])
+        # self.cur = self.connection.cursor()
         self.count = 0
         self.init = False
         if os.path.exists('count'):
@@ -70,41 +70,41 @@ class SearchEngine():
                     print(error)
                     self.count = 0
 
-    def check_db_status(self):
-        """
-        Function to check the status of bd
-        """
-        query = r'select count(*) from news;'
-        self.cur.execute(query)
-        result = self.cur.fetchall()
-        print(result)
+    # def check_db_status(self):
+    #     """
+    #     Function to check the status of bd
+    #     """
+    #     query = r'select count(*) from news;'
+    #     self.cur.execute(query)
+    #     result = self.cur.fetchall()
+    #     print(result)
 
-    def read_from_db(self):
-        """
-        Function to read data from status
-        """
-        print("Start Reading Data From db")
-        query = r'select * from news limit 10000 offset 0;'
-        self.cur.execute(query)
-        results = self.cur.fetchall()
-        for result in results:
-            data = {}
-            print(result[0])
-            data['news_url'] = result[1]
-            data['media'] = result[2]
-            data['category'] = result[3]
-            data['tags'] = result[4]
-            data['title'] = result[5]
-            data['content'] = result[7]
-            data['first_img_url'] = result[8]
-            if data['first_img_url'] is None:
-                data['first_img_url'] = "None"
-            data['pub_time'] = str(result[9])
-            # data['news_id'] = str(result[0])
-            data['title'] = result[5]
-            data['content'] = result[7]
-            self.add_news(data)
-        return len(results)
+    # def read_from_db(self):
+    #     """
+    #     Function to read data from status
+    #     """
+    #     print("Start Reading Data From db")
+    #     query = r'select * from news limit 10000 offset 0;'
+    #     self.cur.execute(query)
+    #     results = self.cur.fetchall()
+    #     for result in results:
+    #         data = {}
+    #         print(result[0])
+    #         data['news_url'] = result[1]
+    #         data['media'] = result[2]
+    #         data['category'] = result[3]
+    #         data['tags'] = result[4]
+    #         data['title'] = result[5]
+    #         data['content'] = result[7]
+    #         data['first_img_url'] = result[8]
+    #         if data['first_img_url'] is None:
+    #             data['first_img_url'] = "None"
+    #         data['pub_time'] = str(result[9])
+    #         # data['news_id'] = str(result[0])
+    #         data['title'] = result[5]
+    #         data['content'] = result[7]
+    #         self.add_news(data)
+    #     return len(results)
 
     def get_document(self, data_json):
         """
@@ -213,6 +213,10 @@ class SearchEngine():
             except Exception as error:
                 print(error)
                 total = 990
+            try:
+                raw_total = int(str(topdocs.totalHits).replace(" hits", '').replace('+', ''))
+            except Exception:
+                pass
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
                 news = {}
@@ -220,11 +224,6 @@ class SearchEngine():
                 news['news_list'] = []
                 news['message'] = "Success"
                 return news
-            # start = page * 10
-            # end = min(start+10,total)
-            # topdocs = searcher.search(query, 10)
-            # print("total:"+str(topdocs.totalHits))
-            # scoredocs = topdocs.scoreDocs[start:end]
             scoredocs = topdocs.scoreDocs[0:100]
             queryscorer = QueryScorer(query)
             simplehtmlformatter = SimpleHTMLFormatter('<span class="szz-type">', '</span>')
@@ -232,7 +231,6 @@ class SearchEngine():
             news_list = []
             for scoredoc in scoredocs:
                 docid = scoredoc.doc
-                # score = scoredoc.score
                 doc = searcher.doc(docid)
                 tokenstream = TokenSources.getTokenStream(doc, "content", self.analyzer)
                 content = lighter.getBestFragment(tokenstream, doc.get('content'))
@@ -249,7 +247,7 @@ class SearchEngine():
                 news_list += [new]
             indexreader.close()
             news = {}
-            news['total'] = int(str(topdocs.totalHits).replace(" hits", ''))
+            news['total'] = raw_total
             news['news_list'] = news_list
             news['message'] = "Success"
             return news
@@ -291,7 +289,7 @@ class SearchEngine():
             except Exception as error:
                 print(error)
                 total = 990
-            print(total)
+            # print(total)
             total_page = math.ceil(total/10)-1
             if page > total_page + 1 or page < 0:
                 news = {}
@@ -373,6 +371,12 @@ class SearchEngine():
                 print(error)
                 total = 990
             total = min(total, 100)
+            try:
+                total_raw = int(str(topdocs.totalHits).replace(" hits", '').replace('+', ''))
+            except Exception:
+                total_raw = total
+            print("total:")
+            print(total_raw)
             total_page = math.ceil(total/10)-1
             if page / 10 > total_page + 1 or page < 0:
                 news = {}
@@ -383,6 +387,9 @@ class SearchEngine():
             if sort is True:
                 news_list = []
                 scoredocs = topdocs.scoreDocs
+                print("sort:")
+                print(total)
+                total = min(total, 20)
                 for idx in range(total):
                     scoredoc = scoredocs[idx]
                     docid = scoredoc.doc
@@ -441,7 +448,7 @@ class SearchEngine():
                 news_list += [new]
             print("Searching End!")
             news = {}
-            news['total'] = total
+            news['total'] = total_raw
             news['news_list'] = news_list
             news['message'] = "Success"
             return news
@@ -508,26 +515,30 @@ class MyThread(Thread):
 
 
 if __name__ == "__main__":
+    print(4)
     dispatcher = RPCDispatcher()
     transport = WsgiServerTransport(queue_class=gevent.queue.Queue)
-
+    print(3)
     # start wsgi server as a background-greenlet
     wsgi_server = gevent.pywsgi.WSGIServer(('0.0.0.0', 5001), transport.handle)
     gevent.spawn(wsgi_server.serve_forever)
-
+    print(2)
     rpc_server = RPCServerGreenlets(
         transport,
         JSONRPCProtocol(),
         dispatcher
     )
-
+    print(1)
     mysearch = SearchEngine()
     paths = []
     indexreaders = []
     searchers = []
+    directorys = []
     for i in range(1, 11):
         paths += ["index/index" + str(i)]
+        print(paths[i-1])
         directoryt = FSDirectory.open(Paths.get("index/index" + str(i)))
+        directorys += [directoryt]
         indexreadert = DirectoryReader.open(directoryt)
         indexreaders += [indexreadert]
         searchert = IndexSearcher(indexreadert)
@@ -542,8 +553,10 @@ if __name__ == "__main__":
         threads = []
         start = time.time()
         for index in range(1, 11):
+            indexreadert = DirectoryReader.open(directorys[index-1])
+            searchert = IndexSearcher(indexreadert)
             thread = MyThread(mysearch.search_news_thread,
-                              (keyword, searchers[index-1], page, sort))
+                              (keyword, searchert, page, sort))
             thread.start()
             threads += [thread]
         for idx in range(0, 10):
